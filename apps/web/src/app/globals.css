@@ -1,0 +1,165 @@
+@import url('https://fonts.googleapis.com/css2?family=Instrument+Sans:ital,wght@0,400;0,500;0,600;0,700;1,400&display=swap');
+@import "tailwindcss";
+
+/* ── Design Tokens ────────────────────────────────────── */
+:root {
+  /* Surfaces */
+  --bg:          #faf9f7;
+  --surface:     #f4f3f0;
+  --surface-2:   #eceae5;
+  --border:      #e7e5e0;
+  --border-2:    #d6d3cc;
+
+  /* Text */
+  --text:        #1c1917;
+  --text-muted:  #78716c;
+  --text-faint:  #a8a29e;
+
+  /* Accent — blue-700 */
+  --accent:      #1d4ed8;
+  --accent-h:    #1e40af;
+  --accent-text: #eff6ff;
+  --accent-sub:  #dbeafe;
+
+  /* Semantic */
+  --success:     #15803d;
+  --success-bg:  #f0fdf4;
+  --error:       #b91c1c;
+  --error-bg:    #fef2f2;
+  --warning:     #b45309;
+  --warning-bg:  #fffbeb;
+
+  /* Radius */
+  --r-sm:  4px;
+  --r-md:  6px;
+  --r-lg:  8px;
+  --r-xl:  12px;
+  --r-full: 9999px;
+}
+
+/* ── Base ─────────────────────────────────────────────── */
+*, *::before, *::after {
+  box-sizing: border-box;
+}
+
+body {
+  background: var(--bg);
+  color: var(--text);
+  font-family: 'Instrument Sans', ui-sans-serif, system-ui, sans-serif;
+  font-size: 15px;
+  line-height: 1.6;
+  -webkit-font-smoothing: antialiased;
+  -moz-osx-font-smoothing: grayscale;
+}
+
+/* Geist Mono는 코드/데이터용으로 유지 */
+code, kbd, pre, .font-mono {
+  font-family: var(--font-geist-mono), 'Geist Mono', ui-monospace, monospace;
+}
+
+/* ── Sheet / Dialog animations ───────────────────────── */
+@keyframes fade-in {
+  from { opacity: 0; }
+  to   { opacity: 1; }
+}
+@keyframes fade-out {
+  from { opacity: 1; }
+  to   { opacity: 0; }
+}
+@keyframes slide-in-from-right {
+  from { transform: translateX(100%); }
+  to   { transform: translateX(0); }
+}
+@keyframes slide-out-to-right {
+  from { transform: translateX(0); }
+  to   { transform: translateX(100%); }
+}
+@keyframes slide-up {
+  from { transform: translateY(6px); opacity: 0; }
+  to   { transform: translateY(0);   opacity: 1; }
+}
+
+.animate-in  { animation-fill-mode: both; animation-duration: 200ms; }
+.animate-out { animation-fill-mode: both; animation-duration: 200ms; }
+.fade-in-0   { animation-name: fade-in; }
+.fade-out-0  { animation-name: fade-out; }
+.slide-in-from-right { animation-name: slide-in-from-right; }
+.slide-out-to-right  { animation-name: slide-out-to-right; }
+.duration-200 { animation-duration: 200ms; }
+.duration-300 { animation-duration: 300ms; }
+
+/* ── Shared UI primitives ─────────────────────────────── */
+
+/* Buttons */
+.btn {
+  display: inline-flex;
+  align-items: center;
+  gap: 6px;
+  padding: 7px 14px;
+  border-radius: var(--r-md);
+  font-size: 14px;
+  font-weight: 500;
+  font-family: inherit;
+  cursor: pointer;
+  transition: background 150ms ease, color 150ms ease, border-color 150ms ease, box-shadow 150ms ease;
+  border: 1px solid transparent;
+  white-space: nowrap;
+  user-select: none;
+}
+.btn:disabled { opacity: 0.5; cursor: not-allowed; }
+.btn-primary {
+  background: var(--accent);
+  color: var(--accent-text);
+  border-color: var(--accent);
+}
+.btn-primary:hover:not(:disabled) { background: var(--accent-h); border-color: var(--accent-h); }
+.btn-outline {
+  background: transparent;
+  color: var(--text);
+  border-color: var(--border-2);
+}
+.btn-outline:hover:not(:disabled) { background: var(--surface); border-color: var(--border-2); }
+.btn-ghost {
+  background: transparent;
+  color: var(--text-muted);
+  border-color: transparent;
+}
+.btn-ghost:hover:not(:disabled) { background: var(--surface); color: var(--text); }
+
+/* Inputs */
+.input {
+  width: 100%;
+  padding: 8px 12px;
+  border: 1px solid var(--border-2);
+  border-radius: var(--r-md);
+  background: white;
+  color: var(--text);
+  font-size: 14px;
+  font-family: inherit;
+  transition: border-color 150ms ease, box-shadow 150ms ease;
+  outline: none;
+}
+.input::placeholder { color: var(--text-faint); }
+.input:focus {
+  border-color: var(--accent);
+  box-shadow: 0 0 0 3px color-mix(in srgb, var(--accent) 12%, transparent);
+}
+
+/* Cards */
+.card {
+  background: white;
+  border: 1px solid var(--border);
+  border-radius: var(--r-lg);
+  box-shadow: 0 1px 3px rgba(0,0,0,.04), 0 1px 2px rgba(0,0,0,.03);
+}
+
+/* Badge */
+.badge {
+  display: inline-flex;
+  align-items: center;
+  padding: 2px 8px;
+  border-radius: var(--r-full);
+  font-size: 11px;
+  font-weight: 500;
+  letter-spacing: .02em;
+}
