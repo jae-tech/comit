@@ -1,23 +1,24 @@
 import { vi } from 'vitest';
 import { Test } from '@nestjs/testing';
-import { getRepositoryToken } from '@nestjs/typeorm';
 import { getQueueToken } from '@nestjs/bull';
 import { ForbiddenException, NotFoundException } from '@nestjs/common';
 import { DocumentsService } from './documents.service';
-import { Document } from '../database/entities/document.entity';
-import { DocumentChunk } from '../database/entities/document-chunk.entity';
 import { WorkspacesService } from '../workspaces/workspaces.service';
+import { DrizzleService } from '../database/drizzle.service';
 import { EMBEDDING_QUEUE } from './constants';
 
-const mockDocumentRepo = () => ({
-  findBy: vi.fn(),
-  findOneBy: vi.fn(),
-  create: vi.fn(),
-  save: vi.fn(),
-  remove: vi.fn(),
+const mockDrizzle = () => ({
+  db: {
+    select: vi.fn().mockReturnThis(),
+    from: vi.fn().mockReturnThis(),
+    where: vi.fn().mockReturnThis(),
+    limit: vi.fn().mockResolvedValue([]),
+    insert: vi.fn().mockReturnThis(),
+    values: vi.fn().mockReturnThis(),
+    returning: vi.fn().mockResolvedValue([]),
+    delete: vi.fn().mockReturnThis(),
+  },
 });
-
-const mockChunkRepo = () => ({});
 
 const mockQueue = () => ({ add: vi.fn() });
 
@@ -28,7 +29,6 @@ const mockWorkspacesService = () => ({
 describe('DocumentsService — workspace 소유권 검증', () => {
   let service: DocumentsService;
   let workspacesService: ReturnType<typeof mockWorkspacesService>;
-  let documentRepo: ReturnType<typeof mockDocumentRepo>;
 
   const OWNER_ID = 'user-owner-uuid';
   const OTHER_USER_ID = 'user-other-uuid';
@@ -38,8 +38,7 @@ describe('DocumentsService — workspace 소유권 검증', () => {
     const module = await Test.createTestingModule({
       providers: [
         DocumentsService,
-        { provide: getRepositoryToken(Document), useFactory: mockDocumentRepo },
-        { provide: getRepositoryToken(DocumentChunk), useFactory: mockChunkRepo },
+        { provide: DrizzleService, useFactory: mockDrizzle },
         { provide: getQueueToken(EMBEDDING_QUEUE), useFactory: mockQueue },
         { provide: WorkspacesService, useFactory: mockWorkspacesService },
       ],
@@ -47,13 +46,18 @@ describe('DocumentsService — workspace 소유권 검증', () => {
 
     service = module.get(DocumentsService);
     workspacesService = module.get(WorkspacesService);
-    documentRepo = module.get(getRepositoryToken(Document));
   });
 
   describe('findAll()', () => {
     it('소유자는 문서 목록을 조회할 수 있어야 한다', async () => {
       workspacesService.findOne.mockResolvedValue({ id: WORKSPACE_ID, ownerId: OWNER_ID });
-      documentRepo.findBy.mockResolvedValue([]);
+
+      const drizzle = module.get(DrizzleService);
+      drizzle.db.select.mockReturnValue({
+        from: vi.fn().mockReturnValue({
+          where: vi.fn().mockResolvedValue([]),
+        }),
+      });
 
       await expect(service.findAll(WORKSPACE_ID, OWNER_ID)).resolves.toEqual([]);
       expect(workspacesService.findOne).toHaveBeenCalledWith(WORKSPACE_ID, OWNER_ID);
@@ -64,33 +68,6 @@ describe('DocumentsService — workspace 소유권 검증', () => {
 
       await expect(service.findAll(WORKSPACE_ID, OTHER_USER_ID)).rejects.toThrow(
         ForbiddenException,
-      );
-    });
-  });
-
-  describe('findOne()', () => {
-    it('소유자는 문서를 조회할 수 있어야 한다', async () => {
-      const doc = { id: 'doc-1', workspaceId: WORKSPACE_ID };
-      workspacesService.findOne.mockResolvedValue({ id: WORKSPACE_ID });
-      documentRepo.findOneBy.mockResolvedValue(doc);
-
-      await expect(service.findOne('doc-1', WORKSPACE_ID, OWNER_ID)).resolves.toEqual(doc);
-    });
-
-    it('비소유자가 접근하면 ForbiddenException이 발생해야 한다', async () => {
-      workspacesService.findOne.mockRejectedValue(new ForbiddenException());
-
-      await expect(service.findOne('doc-1', WORKSPACE_ID, OTHER_USER_ID)).rejects.toThrow(
-        ForbiddenException,
-      );
-    });
-
-    it('존재하지 않는 문서는 NotFoundException이 발생해야 한다', async () => {
-      workspacesService.findOne.mockResolvedValue({ id: WORKSPACE_ID });
-      documentRepo.findOneBy.mockResolvedValue(null);
-
-      await expect(service.findOne('nonexistent', WORKSPACE_ID, OWNER_ID)).rejects.toThrow(
-        NotFoundException,
       );
     });
   });

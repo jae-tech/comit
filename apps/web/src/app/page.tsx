@@ -17,16 +17,39 @@ interface Workspace {
   createdAt: string;
 }
 
+function WorkspaceSkeleton() {
+  return (
+    <div className="flex flex-col gap-2">
+      {[1, 2, 3].map((i) => (
+        <div key={i} className="bg-white border border-stone-200 rounded-lg px-4 py-3.5 flex items-center justify-between animate-pulse">
+          <div className="flex items-center gap-3">
+            <div className="w-8 h-8 rounded-md bg-stone-100 shrink-0" />
+            <div className="flex flex-col gap-1.5">
+              <div className="h-3.5 w-36 bg-stone-100 rounded" />
+              <div className="h-3 w-20 bg-stone-100 rounded" />
+            </div>
+          </div>
+          <div className="flex gap-1">
+            <div className="h-7 w-14 bg-stone-100 rounded-md" />
+            <div className="h-7 w-16 bg-stone-100 rounded-md" />
+          </div>
+        </div>
+      ))}
+    </div>
+  );
+}
+
 function HomePage() {
   const router = useRouter();
   const { clear, refreshToken } = useAuthStore();
   const [workspaces, setWorkspaces] = useState<Workspace[]>([]);
+  const [loading, setLoading] = useState(true);
   const [newName, setNewName] = useState('');
   const [creating, setCreating] = useState(false);
   const [showForm, setShowForm] = useState(false);
 
   useEffect(() => {
-    workspaceApi.list().then((r) => setWorkspaces(r.data));
+    workspaceApi.list().then((r) => setWorkspaces(r.data)).finally(() => setLoading(false));
   }, []);
 
   async function createWorkspace(e: React.FormEvent) {
@@ -40,7 +63,8 @@ function HomePage() {
     setCreating(false);
   }
 
-  async function handleRemove(id: string) {
+  async function handleRemove(id: string, name: string) {
+    if (!confirm(`"${name}" 워크스페이스를 삭제할까요?\n문서와 채팅 기록이 모두 삭제됩니다.`)) return;
     try {
       await workspaceApi.remove(id);
       setWorkspaces((prev) => prev.filter((w) => w.id !== id));
@@ -111,7 +135,9 @@ function HomePage() {
           </form>
         )}
 
-        {workspaces.length === 0 ? (
+        {loading ? (
+          <WorkspaceSkeleton />
+        ) : workspaces.length === 0 ? (
           <div className="flex flex-col items-center gap-3 py-20 text-stone-400">
             <div className="w-12 h-12 rounded-xl bg-stone-100 flex items-center justify-center">
               <FileText className="h-5 w-5 text-stone-400" />
@@ -163,8 +189,9 @@ function HomePage() {
                   <Button
                     variant="ghost"
                     size="sm"
-                    onClick={() => handleRemove(ws.id)}
+                    onClick={() => handleRemove(ws.id, ws.name)}
                     className="text-stone-300 hover:text-red-500 hover:bg-red-50"
+                    aria-label={`"${ws.name}" 삭제`}
                   >
                     <Trash2 className="h-3.5 w-3.5" />
                   </Button>

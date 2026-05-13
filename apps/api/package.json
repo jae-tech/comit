@@ -18,9 +18,10 @@
     "test:watch": "vitest",
     "test:cov": "vitest run --coverage",
     "test:e2e": "vitest run --config ./test/vitest-e2e.config.ts",
-    "db:generate": "typeorm-ts-node-commonjs migration:generate -d src/database/data-source.ts",
-    "db:migrate": "typeorm-ts-node-commonjs migration:run -d src/database/data-source.ts",
-    "db:revert": "typeorm-ts-node-commonjs migration:revert -d src/database/data-source.ts"
+    "db:generate": "drizzle-kit generate",
+    "db:migrate": "drizzle-kit migrate",
+    "db:push": "drizzle-kit push",
+    "db:studio": "drizzle-kit studio"
   },
   "dependencies": {
     "@anthropic-ai/sdk": "^0.37.0",
@@ -37,23 +38,21 @@
     "@nestjs/passport": "^11.0.0",
     "@nestjs/platform-fastify": "^11.1.19",
     "@nestjs/swagger": "^11.0.0",
-    "@nestjs/typeorm": "^11.0.0",
     "@orbit/shared": "workspace:*",
     "bcrypt": "^5.1.1",
     "bull": "^4.16.5",
     "class-transformer": "^0.5.1",
     "class-validator": "^0.14.1",
+    "drizzle-orm": "^0.45.2",
     "ioredis": "^5.4.2",
     "openai": "^4.77.0",
     "passport": "^0.7.0",
     "passport-jwt": "^4.0.1",
     "passport-local": "^1.0.0",
     "pdf-parse": "^1.1.1",
-    "pg": "^8.13.1",
-    "pgvector": "^0.2.0",
+    "postgres": "^3.4.9",
     "reflect-metadata": "^0.2.2",
-    "rxjs": "^7.8.1",
-    "typeorm": "^0.3.20"
+    "rxjs": "^7.8.1"
   },
   "devDependencies": {
     "@eslint/eslintrc": "^3.2.0",
@@ -72,6 +71,7 @@
     "@types/supertest": "^7.0.0",
     "@vitest/coverage-v8": "^4.1.6",
     "@vitest/ui": "^4.1.6",
+    "drizzle-kit": "^0.31.10",
     "eslint": "^9.18.0",
     "eslint-config-prettier": "^10.0.1",
     "eslint-plugin-prettier": "^5.2.2",

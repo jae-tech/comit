@@ -100,6 +100,14 @@ function DocumentsPage() {
   async function handleUpload(e: React.ChangeEvent<HTMLInputElement>) {
     const file = e.target.files?.[0];
     if (!file) return;
+
+    const MAX_SIZE = 50 * 1024 * 1024; // 50MB
+    if (file.size > MAX_SIZE) {
+      toast.error(`파일 크기가 50MB를 초과합니다. (${(file.size / 1024 / 1024).toFixed(1)}MB)`);
+      if (fileRef.current) fileRef.current.value = '';
+      return;
+    }
+
     setUploading(true);
     try {
       await documentApi.upload(workspaceId, file);
@@ -113,6 +121,17 @@ function DocumentsPage() {
     } finally {
       setUploading(false);
       if (fileRef.current) fileRef.current.value = '';
+    }
+  }
+
+  async function handleRetry(doc: Document) {
+    // 실패한 문서를 삭제 후 재업로드 유도
+    try {
+      await documentApi.remove(doc.id, workspaceId);
+      setDocs((prev) => prev.filter((d) => d.id !== doc.id));
+      toast.info(`"${doc.filename}" 삭제됨 — 파일을 다시 업로드해주세요.`);
+    } catch {
+      toast.error('재시도 준비 중 오류가 발생했습니다.');
     }
   }
 
@@ -202,14 +221,27 @@ function DocumentsPage() {
                   </div>
                 </div>
               </div>
-              <Button
-                variant="ghost"
-                size="icon"
-                onClick={() => handleRemove(doc.id, doc.filename)}
-                className="shrink-0 text-stone-300 hover:text-red-500 hover:bg-red-50"
-              >
-                <Trash2 className="h-4 w-4" />
-              </Button>
+              <div className="flex items-center gap-1 shrink-0">
+                {doc.status === 'failed' && (
+                  <Button
+                    variant="ghost"
+                    size="sm"
+                    onClick={() => handleRetry(doc)}
+                    className="text-xs text-stone-400 hover:text-orange-600 hover:bg-orange-50"
+                  >
+                    재시도
+                  </Button>
+                )}
+                <Button
+                  variant="ghost"
+                  size="icon"
+                  onClick={() => handleRemove(doc.id, doc.filename)}
+                  className="text-stone-300 hover:text-red-500 hover:bg-red-50"
+                  aria-label={`"${doc.filename}" 삭제`}
+                >
+                  <Trash2 className="h-4 w-4" />
+                </Button>
+              </div>
             </div>
           ))}
         </div>

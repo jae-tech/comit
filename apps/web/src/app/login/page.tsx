@@ -43,7 +43,7 @@ export default function LoginPage() {
           <span className="text-base font-semibold text-stone-900 tracking-tight">Orbit AI</span>
         </div>
 
-        <div className="bg-white rounded-xl border border-stone-200 p-8 shadow-sm">
+        <div className="bg-white rounded-lg border border-stone-200 p-8 shadow-sm">
           <h1 className="text-lg font-semibold text-stone-900 mb-1">로그인</h1>
           <p className="text-sm text-stone-500 mb-6">워크스페이스로 돌아오세요</p>
 

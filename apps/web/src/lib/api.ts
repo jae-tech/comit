@@ -23,8 +23,10 @@ api.interceptors.response.use(
   async (err) => {
     const url: string = err.config?.url ?? '';
     const isAuthEndpoint = url.startsWith('/auth/');
+    // 이미 재시도한 요청이면 무한루프 방지
+    const isRetry = err.config?._retry === true;
 
-    if (err.response?.status !== 401 || isAuthEndpoint || typeof window === 'undefined') {
+    if (err.response?.status !== 401 || isAuthEndpoint || isRetry || typeof window === 'undefined') {
       return Promise.reject(err);
     }
 
@@ -41,14 +43,15 @@ api.interceptors.response.use(
       return new Promise((resolve, reject) => {
         refreshQueue.push((newToken) => {
           err.config.headers.Authorization = `Bearer ${newToken}`;
+          err.config._retry = true;
           resolve(api(err.config));
         });
-        // 갱신 실패 시 reject — 갱신 성공 시 위 resolve가 먼저 호출되므로 실질적으로 실행 안 됨
         setTimeout(() => reject(err), 10000);
       });
     }
 
     isRefreshing = true;
+    err.config._retry = true;
     try {
       const res = await api.post<{ accessToken: string; refreshToken: string }>(
         '/auth/refresh',
@@ -64,6 +67,7 @@ api.interceptors.response.use(
       err.config.headers.Authorization = `Bearer ${newAccess}`;
       return api(err.config);
     } catch {
+      refreshQueue = [];
       clear();
       window.location.href = '/login';
       return Promise.reject(err);

@@ -1,11 +1,17 @@
 import { Injectable, NotFoundException } from '@nestjs/common';
-import { InjectRepository } from '@nestjs/typeorm';
-import { Repository, DataSource } from 'typeorm';
+import { eq, and, sql } from 'drizzle-orm';
 import { Observable, Subject } from 'rxjs';
 import OpenAI from 'openai';
 import { GoogleGenerativeAI, TaskType } from '@google/generative-ai';
-import { ChatSession } from '../database/entities/chat-session.entity';
-import { ChatMessage } from '../database/entities/chat-message.entity';
+import { DrizzleService } from '../database/drizzle.service';
+import {
+  chatSessions,
+  chatMessages,
+  documents,
+  documentChunks,
+  type ChatSession,
+  type ChatMessage,
+} from '../database/schema';
 import { ProvidersService } from '../providers/providers.service';
 import { WorkspacesService } from '../workspaces/workspaces.service';
 import { ChatQueryDto, ChatStreamChunk, Citation } from '@orbit/shared';
@@ -18,20 +24,12 @@ Respond in the same language as the user's question.`;
 @Injectable()
 export class ChatService {
   constructor(
-    @InjectRepository(ChatSession)
-    private readonly sessionRepo: Repository<ChatSession>,
-    @InjectRepository(ChatMessage)
-    private readonly messageRepo: Repository<ChatMessage>,
+    private readonly drizzle: DrizzleService,
     private readonly providersService: ProvidersService,
     private readonly workspacesService: WorkspacesService,
-    private readonly dataSource: DataSource,
   ) {}
 
-  /** POST /chat/query — fetch + ReadableStream 방식 (native EventSource는 GET only라 미사용) */
-  streamQuery(
-    userId: string,
-    dto: ChatQueryDto,
-  ): Observable<MessageEvent> {
+  streamQuery(userId: string, dto: ChatQueryDto): Observable<MessageEvent> {
     const subject = new Subject<MessageEvent>();
 
     this.processQuery(userId, dto, subject).catch((err) => {
@@ -49,20 +47,19 @@ export class ChatService {
     dto: ChatQueryDto,
     subject: Subject<MessageEvent>,
   ): Promise<void> {
-    // 0. Workspace 소유권 검증 (403 if not owner) + 페르소나 읽기
     const workspace = await this.workspacesService.findOne(dto.workspaceId, userId);
     const systemPrompt = workspace.systemPrompt || DEFAULT_SYSTEM_PROMPT;
 
-    // 1. Provider 확인
     const creds = await this.providersService.getDecryptedKey(userId);
     if (!creds) throw new NotFoundException('AI provider not configured');
 
-    // 1.5. ready 문서 존재 여부 확인 (AI 호출 전 조기 차단)
-    const [{ count }] = await this.dataSource.query<[{ count: string }]>(
-      `SELECT COUNT(*)::int as count FROM documents WHERE workspace_id = $1 AND status = 'ready'`,
-      [dto.workspaceId],
-    );
-    if (Number(count) === 0) {
+    // ready 문서 존재 여부 확인
+    const [{ count }] = await this.drizzle.db
+      .select({ count: sql<number>`COUNT(*)::int` })
+      .from(documents)
+      .where(and(eq(documents.workspaceId, dto.workspaceId), eq(documents.status, 'ready')));
+
+    if (count === 0) {
       subject.next({
         data: JSON.stringify({ type: 'error', error: '문서를 먼저 업로드하고 임베딩이 완료되면 채팅이 가능합니다.' } as ChatStreamChunk),
       } as MessageEvent);
@@ -70,57 +67,57 @@ export class ChatService {
       return;
     }
 
-    // 2. Session 생성 또는 재사용
+    // Session 생성 또는 재사용
     let session: ChatSession;
     if (dto.sessionId) {
-      const found = await this.sessionRepo.findOneBy({ id: dto.sessionId, userId });
+      const [found] = await this.drizzle.db
+        .select()
+        .from(chatSessions)
+        .where(and(eq(chatSessions.id, dto.sessionId), eq(chatSessions.userId, userId)))
+        .limit(1);
       if (!found) throw new NotFoundException('Session not found');
       session = found;
     } else {
-      session = this.sessionRepo.create({ workspaceId: dto.workspaceId, userId });
-      await this.sessionRepo.save(session);
+      const [created] = await this.drizzle.db
+        .insert(chatSessions)
+        .values({ workspaceId: dto.workspaceId, userId })
+        .returning();
+      session = created;
     }
 
-    // 3. 유저 메시지 저장
-    await this.messageRepo.save(
-      this.messageRepo.create({
-        sessionId: session.id,
-        role: 'user',
-        content: dto.question,
-        citations: [],
-      }),
-    );
+    // 유저 메시지 저장
+    await this.drizzle.db.insert(chatMessages).values({
+      sessionId: session.id,
+      role: 'user',
+      content: dto.question,
+      citations: [],
+    });
 
-    // 4. RAG: query embedding → pgvector cosine similarity
+    // RAG: query embedding → pgvector cosine similarity
     const citations = await this.retrieveContext(dto.workspaceId, dto.question, creds.apiKey, creds.provider);
     const context = citations.map((c) => `[${c.filename}]\n${c.excerpt}`).join('\n\n---\n\n');
     const userContent = context
       ? `Context:\n${context}\n\nQuestion: ${dto.question}`
       : dto.question;
 
-    // 5. LLM 스트리밍
+    // LLM 스트리밍
     let fullContent = '';
-
     if (creds.provider === 'gemini') {
       fullContent = await this.streamGemini(creds.apiKey, creds.model, userContent, systemPrompt, subject);
     } else {
       fullContent = await this.streamOpenAI(creds.apiKey, creds.model, userContent, systemPrompt, subject);
     }
 
-    // 6. done 이벤트에 citations 포함
     subject.next({
       data: JSON.stringify({ type: 'done', citations } as ChatStreamChunk),
     } as MessageEvent);
 
-    // 7. 어시스턴트 메시지 저장
-    await this.messageRepo.save(
-      this.messageRepo.create({
-        sessionId: session.id,
-        role: 'assistant',
-        content: fullContent,
-        citations,
-      }),
-    );
+    await this.drizzle.db.insert(chatMessages).values({
+      sessionId: session.id,
+      role: 'assistant',
+      content: fullContent,
+      citations,
+    });
 
     subject.complete();
   }
@@ -128,10 +125,8 @@ export class ChatService {
   private isQuotaError(err: unknown): boolean {
     if (!err || typeof err !== 'object') return false;
     const e = err as Record<string, unknown>;
-    // Gemini: HTTP 429, status 'RESOURCE_EXHAUSTED'
     if (e['status'] === 'RESOURCE_EXHAUSTED') return true;
     if (typeof e['message'] === 'string' && /quota|rate.?limit|resource.?exhausted/i.test(e['message'])) return true;
-    // OpenAI: error.status 429
     if (e['status'] === 429) return true;
     return false;
   }
@@ -154,9 +149,7 @@ export class ChatService {
       stream = await geminiModel.generateContentStream(userContent);
     } catch (err) {
       if (this.isQuotaError(err)) {
-        subject.next({
-          data: JSON.stringify({ type: 'quota_exceeded', error: '일일 API 한도를 초과했습니다. 내일 다시 시도해 주세요.' } as ChatStreamChunk),
-        } as MessageEvent);
+        subject.next({ data: JSON.stringify({ type: 'quota_exceeded', error: '일일 API 한도를 초과했습니다. 내일 다시 시도해 주세요.' } as ChatStreamChunk) } as MessageEvent);
         subject.complete();
         return '';
       }
@@ -169,22 +162,17 @@ export class ChatService {
         const token = chunk.text();
         if (token) {
           fullContent += token;
-          subject.next({
-            data: JSON.stringify({ type: 'token', content: token } as ChatStreamChunk),
-          } as MessageEvent);
+          subject.next({ data: JSON.stringify({ type: 'token', content: token } as ChatStreamChunk) } as MessageEvent);
         }
       }
     } catch (err) {
       if (this.isQuotaError(err)) {
-        subject.next({
-          data: JSON.stringify({ type: 'quota_exceeded', error: '일일 API 한도를 초과했습니다. 내일 다시 시도해 주세요.' } as ChatStreamChunk),
-        } as MessageEvent);
+        subject.next({ data: JSON.stringify({ type: 'quota_exceeded', error: '일일 API 한도를 초과했습니다. 내일 다시 시도해 주세요.' } as ChatStreamChunk) } as MessageEvent);
         subject.complete();
         return fullContent;
       }
       throw err;
     }
-
     return fullContent;
   }
 
@@ -209,9 +197,7 @@ export class ChatService {
       });
     } catch (err) {
       if (this.isQuotaError(err)) {
-        subject.next({
-          data: JSON.stringify({ type: 'quota_exceeded', error: '일일 API 한도를 초과했습니다. 내일 다시 시도해 주세요.' } as ChatStreamChunk),
-        } as MessageEvent);
+        subject.next({ data: JSON.stringify({ type: 'quota_exceeded', error: '일일 API 한도를 초과했습니다. 내일 다시 시도해 주세요.' } as ChatStreamChunk) } as MessageEvent);
         subject.complete();
         return '';
       }
@@ -223,9 +209,7 @@ export class ChatService {
       const token = chunk.choices[0]?.delta?.content ?? '';
       if (token) {
         fullContent += token;
-        subject.next({
-          data: JSON.stringify({ type: 'token', content: token } as ChatStreamChunk),
-        } as MessageEvent);
+        subject.next({ data: JSON.stringify({ type: 'token', content: token } as ChatStreamChunk) } as MessageEvent);
       }
     }
     return fullContent;
@@ -237,7 +221,6 @@ export class ChatService {
     apiKey: string,
     provider: string,
   ): Promise<Citation[]> {
-    // 질문을 embedding으로 변환 (임베딩 시 사용한 provider와 동일하게)
     let queryVector: number[];
 
     if (provider === 'gemini') {
@@ -260,26 +243,27 @@ export class ChatService {
       queryVector = embResponse.data[0].embedding;
     }
 
-    // pgvector cosine similarity 검색
-    const rows: Array<{
+    // pgvector cosine similarity 검색 — raw SQL (vector 연산자는 Drizzle이 미지원)
+    const rows = await this.drizzle.db.execute(
+      sql`
+        SELECT dc.id, dc.document_id, dc.chunk_index, d.filename, dc.content,
+               1 - (dc.embedding <=> ${JSON.stringify(queryVector)}::vector) AS similarity
+        FROM document_chunks dc
+        JOIN documents d ON d.id = dc.document_id
+        WHERE d.workspace_id = ${workspaceId} AND d.status = 'ready'
+        ORDER BY similarity DESC
+        LIMIT ${TOP_K}
+      `,
+    );
+
+    return (rows as unknown as Array<{
       id: string;
       document_id: string;
       filename: string;
       content: string;
       chunk_index: number;
       similarity: number;
-    }> = await this.dataSource.query(
-      `SELECT dc.id, dc.document_id, dc.chunk_index, d.filename, dc.content,
-              1 - (dc.embedding <=> $1::vector) AS similarity
-       FROM document_chunks dc
-       JOIN documents d ON d.id = dc.document_id
-       WHERE d.workspace_id = $2 AND d.status = 'ready'
-       ORDER BY similarity DESC
-       LIMIT $3`,
-      [JSON.stringify(queryVector), workspaceId, TOP_K],
-    );
-
-    return rows.map((row) => ({
+    }>).map((row) => ({
       chunkId: row.id,
       documentId: row.document_id,
       filename: row.filename,
@@ -288,14 +272,26 @@ export class ChatService {
     }));
   }
 
-  async getSessions(workspaceId: string, userId: string) {
-    await this.workspacesService.findOne(workspaceId, userId); // 403 if not owner
-    return this.sessionRepo.findBy({ workspaceId, userId });
+  async getSessions(workspaceId: string, userId: string): Promise<ChatSession[]> {
+    await this.workspacesService.findOne(workspaceId, userId);
+    return this.drizzle.db
+      .select()
+      .from(chatSessions)
+      .where(and(eq(chatSessions.workspaceId, workspaceId), eq(chatSessions.userId, userId)));
   }
 
-  async getMessages(sessionId: string, userId: string) {
-    const session = await this.sessionRepo.findOneBy({ id: sessionId, userId });
+  async getMessages(sessionId: string, userId: string): Promise<ChatMessage[]> {
+    const [session] = await this.drizzle.db
+      .select()
+      .from(chatSessions)
+      .where(and(eq(chatSessions.id, sessionId), eq(chatSessions.userId, userId)))
+      .limit(1);
+
     if (!session) throw new NotFoundException('Session not found');
-    return this.messageRepo.findBy({ sessionId });
+
+    return this.drizzle.db
+      .select()
+      .from(chatMessages)
+      .where(eq(chatMessages.sessionId, sessionId));
   }
 }

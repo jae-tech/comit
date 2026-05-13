@@ -48,7 +48,7 @@ export default function RegisterPage() {
           <span className="text-base font-semibold text-stone-900 tracking-tight">Orbit AI</span>
         </div>
 
-        <div className="bg-white rounded-xl border border-stone-200 p-8 shadow-sm">
+        <div className="bg-white rounded-lg border border-stone-200 p-8 shadow-sm">
           <h1 className="text-lg font-semibold text-stone-900 mb-1">회원가입</h1>
           <p className="text-sm text-stone-500 mb-6">무료로 시작하세요. API 키는 직접 연결합니다.</p>
 

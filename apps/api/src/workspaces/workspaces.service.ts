@@ -1,51 +1,80 @@
 import { Injectable, ForbiddenException, NotFoundException } from '@nestjs/common';
-import { InjectRepository } from '@nestjs/typeorm';
-import { Repository } from 'typeorm';
+import { eq } from 'drizzle-orm';
 import { unlink } from 'fs/promises';
-import { Workspace } from '../database/entities/workspace.entity';
-import { Document } from '../database/entities/document.entity';
+import { DrizzleService } from '../database/drizzle.service';
+import { workspaces, documents, chatSessions, chatMessages, type Workspace } from '../database/schema';
 import { UpdateWorkspaceDto } from './dto/update-workspace.dto';
 
 @Injectable()
 export class WorkspacesService {
-  constructor(
-    @InjectRepository(Workspace)
-    private readonly workspaceRepo: Repository<Workspace>,
-    @InjectRepository(Document)
-    private readonly documentRepo: Repository<Document>,
-  ) {}
+  constructor(private readonly drizzle: DrizzleService) {}
 
-  async create(userId: string, name: string) {
-    const workspace = this.workspaceRepo.create({ ownerId: userId, name });
-    return this.workspaceRepo.save(workspace);
+  async create(userId: string, name: string): Promise<Workspace> {
+    const [ws] = await this.drizzle.db
+      .insert(workspaces)
+      .values({ ownerId: userId, name })
+      .returning();
+    return ws;
   }
 
-  async findAll(userId: string) {
-    return this.workspaceRepo.findBy({ ownerId: userId });
+  async findAll(userId: string): Promise<Workspace[]> {
+    return this.drizzle.db
+      .select()
+      .from(workspaces)
+      .where(eq(workspaces.ownerId, userId));
   }
 
-  async findOne(id: string, userId: string) {
-    const ws = await this.workspaceRepo.findOneBy({ id });
+  async findOne(id: string, userId: string): Promise<Workspace> {
+    const [ws] = await this.drizzle.db
+      .select()
+      .from(workspaces)
+      .where(eq(workspaces.id, id))
+      .limit(1);
+
     if (!ws) throw new NotFoundException('Workspace not found');
     if (ws.ownerId !== userId) throw new ForbiddenException();
     return ws;
   }
 
-  async update(id: string, userId: string, dto: UpdateWorkspaceDto) {
-    const ws = await this.findOne(id, userId);
-    if (dto.personaName !== undefined) ws.personaName = dto.personaName || null;
-    if (dto.systemPrompt !== undefined) ws.systemPrompt = dto.systemPrompt || null;
-    return this.workspaceRepo.save(ws);
+  async update(id: string, userId: string, dto: UpdateWorkspaceDto): Promise<Workspace> {
+    await this.findOne(id, userId); // 403/404
+
+    const patch: Partial<Workspace> = {};
+    if (dto.personaName !== undefined) patch.personaName = dto.personaName || null;
+    if (dto.systemPrompt !== undefined) patch.systemPrompt = dto.systemPrompt || null;
+
+    const [updated] = await this.drizzle.db
+      .update(workspaces)
+      .set(patch)
+      .where(eq(workspaces.id, id))
+      .returning();
+
+    return updated;
   }
 
-  async remove(id: string, userId: string) {
-    const ws = await this.findOne(id, userId); // 403/404 if not owner or not found
+  async remove(id: string, userId: string): Promise<void> {
+    await this.findOne(id, userId); // 403/404
 
-    // 디스크 파일 정리 (DB CASCADE 전에 실행)
-    const docs = await this.documentRepo.findBy({ workspaceId: id });
+    // 디스크 파일 정리
+    const docs = await this.drizzle.db
+      .select({ filePath: documents.filePath })
+      .from(documents)
+      .where(eq(documents.workspaceId, id));
+
     await Promise.allSettled(docs.map((d) => unlink(d.filePath)));
 
-    // chat_sessions → chat_messages, documents → document_chunks 모두 CASCADE 삭제
-    await this.workspaceRepo.remove(ws);
+    // chat_messages → chat_sessions → documents → workspace 순으로 삭제
+    // (DB FK에 CASCADE가 없으므로 직접 순서대로 삭제)
+    const sessionIds = await this.drizzle.db
+      .select({ id: chatSessions.id })
+      .from(chatSessions)
+      .where(eq(chatSessions.workspaceId, id));
+
+    for (const { id: sessionId } of sessionIds) {
+      await this.drizzle.db.delete(chatMessages).where(eq(chatMessages.sessionId, sessionId));
+    }
+    await this.drizzle.db.delete(chatSessions).where(eq(chatSessions.workspaceId, id));
+    await this.drizzle.db.delete(documents).where(eq(documents.workspaceId, id));
+    await this.drizzle.db.delete(workspaces).where(eq(workspaces.id, id));
   }
 }

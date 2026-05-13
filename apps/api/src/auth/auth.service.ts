@@ -3,21 +3,20 @@ import {
   UnauthorizedException,
   ConflictException,
 } from '@nestjs/common';
-import { InjectRepository } from '@nestjs/typeorm';
-import { Repository } from 'typeorm';
 import { JwtService } from '@nestjs/jwt';
 import { ConfigService } from '@nestjs/config';
 import { InjectRedis } from '@nestjs-modules/ioredis';
 import type Redis from 'ioredis';
 import * as bcrypt from 'bcrypt';
-import { User } from '../database/entities/user.entity';
+import { eq } from 'drizzle-orm';
+import { DrizzleService } from '../database/drizzle.service';
+import { users, type User } from '../database/schema';
 import { RegisterDto, LoginDto, AuthTokens } from '@orbit/shared';
 
 @Injectable()
 export class AuthService {
   constructor(
-    @InjectRepository(User)
-    private readonly userRepo: Repository<User>,
+    private readonly drizzle: DrizzleService,
     private readonly jwtService: JwtService,
     private readonly config: ConfigService,
     @InjectRedis()
@@ -25,18 +24,30 @@ export class AuthService {
   ) {}
 
   async register(dto: RegisterDto): Promise<AuthTokens> {
-    const existing = await this.userRepo.findOneBy({ email: dto.email });
+    const [existing] = await this.drizzle.db
+      .select({ id: users.id })
+      .from(users)
+      .where(eq(users.email, dto.email))
+      .limit(1);
+
     if (existing) throw new ConflictException('Email already in use');
 
     const passwordHash = await bcrypt.hash(dto.password, 12);
-    const user = this.userRepo.create({ email: dto.email, passwordHash });
-    await this.userRepo.save(user);
+    const [user] = await this.drizzle.db
+      .insert(users)
+      .values({ email: dto.email, passwordHash })
+      .returning();
 
     return this.issueTokens(user);
   }
 
   async login(dto: LoginDto): Promise<AuthTokens> {
-    const user = await this.userRepo.findOneBy({ email: dto.email });
+    const [user] = await this.drizzle.db
+      .select()
+      .from(users)
+      .where(eq(users.email, dto.email))
+      .limit(1);
+
     if (!user) throw new UnauthorizedException('Invalid credentials');
 
     const valid = await bcrypt.compare(dto.password, user.passwordHash);
@@ -46,7 +57,6 @@ export class AuthService {
   }
 
   async refresh(refreshToken: string): Promise<AuthTokens> {
-    // blocklist 확인
     const blocked = await this.redis.get(`rt_block:${refreshToken}`);
     if (blocked) throw new UnauthorizedException('Token revoked');
 
@@ -61,12 +71,15 @@ export class AuthService {
 
     if (payload.type !== 'refresh') throw new UnauthorizedException('Invalid token type');
 
-    const user = await this.userRepo.findOneBy({ id: payload.sub });
+    const [user] = await this.drizzle.db
+      .select()
+      .from(users)
+      .where(eq(users.id, payload.sub))
+      .limit(1);
+
     if (!user) throw new UnauthorizedException('User not found');
 
-    // 이전 refresh token 무효화
     await this.revokeRefreshToken(refreshToken);
-
     return this.issueTokens(user);
   }
 
@@ -75,7 +88,6 @@ export class AuthService {
   }
 
   private async revokeRefreshToken(token: string): Promise<void> {
-    // refresh token 남은 유효기간만큼 blocklist에 추가
     const refreshExpires = this.config.get('JWT_REFRESH_EXPIRES', '7d');
     const ttlSeconds = this.parseDurationToSeconds(refreshExpires);
     await this.redis.set(`rt_block:${token}`, '1', 'EX', ttlSeconds);

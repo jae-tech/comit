@@ -1,15 +1,11 @@
-import {
-  Injectable,
-  NotFoundException,
-} from '@nestjs/common';
-import { InjectRepository } from '@nestjs/typeorm';
-import { Repository } from 'typeorm';
+import { Injectable, NotFoundException, Logger } from '@nestjs/common';
+import { eq, and } from 'drizzle-orm';
+import { writeFile, unlink, mkdir, stat } from 'fs/promises';
+import { join } from 'path';
 import { InjectQueue } from '@nestjs/bull';
 import type { Queue } from 'bull';
-import { writeFile, unlink, mkdir } from 'fs/promises';
-import { join } from 'path';
-import { Document } from '../database/entities/document.entity';
-import { DocumentChunk } from '../database/entities/document-chunk.entity';
+import { DrizzleService } from '../database/drizzle.service';
+import { documents, type Document } from '../database/schema';
 import { WorkspacesService } from '../workspaces/workspaces.service';
 import { EMBEDDING_QUEUE } from './constants';
 
@@ -22,38 +18,39 @@ export interface UploadedFileDto {
 
 @Injectable()
 export class DocumentsService {
+  private readonly logger = new Logger(DocumentsService.name);
   private readonly uploadDir = join(process.cwd(), 'uploads');
 
   constructor(
-    @InjectRepository(Document)
-    private readonly documentRepo: Repository<Document>,
-    @InjectRepository(DocumentChunk)
-    private readonly chunkRepo: Repository<DocumentChunk>,
+    private readonly drizzle: DrizzleService,
     @InjectQueue(EMBEDDING_QUEUE)
     private readonly embeddingQueue: Queue,
     private readonly workspacesService: WorkspacesService,
   ) {}
 
-  async upload(workspaceId: string, userId: string, file: UploadedFileDto) {
+  async upload(workspaceId: string, userId: string, file: UploadedFileDto): Promise<Document> {
     await this.workspacesService.findOne(workspaceId, userId); // 403 if not owner
 
-    // uploads 디렉토리 보장
     await mkdir(this.uploadDir, { recursive: true });
 
     const safeFilename = `${Date.now()}-${file.originalname.replace(/[^a-zA-Z0-9._-]/g, '_')}`;
     const filePath = join(this.uploadDir, safeFilename);
+    this.logger.log(`Saving file: ${filePath} (bufferSize=${file.buffer.length})`);
     await writeFile(filePath, file.buffer);
+    const saved = await stat(filePath);
+    this.logger.log(`File saved OK: ${filePath} (diskSize=${saved.size})`);
 
-    const doc = this.documentRepo.create({
-      workspaceId,
-      filename: file.originalname,
-      status: 'pending',
-      fileSize: file.size,
-      filePath,
-    });
-    await this.documentRepo.save(doc);
+    const [doc] = await this.drizzle.db
+      .insert(documents)
+      .values({
+        workspaceId,
+        filename: file.originalname,
+        status: 'pending',
+        fileSize: file.size,
+        filePath,
+      })
+      .returning();
 
-    // BullMQ 큐에 embedding 작업 등록
     await this.embeddingQueue.add(
       'embed',
       { documentId: doc.id, userId },
@@ -67,30 +64,45 @@ export class DocumentsService {
     return doc;
   }
 
-  async findAll(workspaceId: string, userId: string) {
+  async findAll(workspaceId: string, userId: string): Promise<Document[]> {
     await this.workspacesService.findOne(workspaceId, userId); // 403 if not owner
-    return this.documentRepo.findBy({ workspaceId });
+    return this.drizzle.db
+      .select()
+      .from(documents)
+      .where(eq(documents.workspaceId, workspaceId));
   }
 
-  async findOne(id: string, workspaceId: string, userId: string) {
+  async findOne(id: string, workspaceId: string, userId: string): Promise<Document> {
     await this.workspacesService.findOne(workspaceId, userId); // 403 if not owner
-    const doc = await this.documentRepo.findOneBy({ id, workspaceId });
+    const [doc] = await this.drizzle.db
+      .select()
+      .from(documents)
+      .where(and(eq(documents.id, id), eq(documents.workspaceId, workspaceId)))
+      .limit(1);
+
     if (!doc) throw new NotFoundException('Document not found');
     return doc;
   }
 
-  async remove(id: string, workspaceId: string, userId: string) {
+  async remove(id: string, workspaceId: string, userId: string): Promise<void> {
     await this.workspacesService.findOne(workspaceId, userId); // 403 if not owner
-    const doc = await this.documentRepo.findOneBy({ id, workspaceId });
+    const [doc] = await this.drizzle.db
+      .select()
+      .from(documents)
+      .where(and(eq(documents.id, id), eq(documents.workspaceId, workspaceId)))
+      .limit(1);
+
     if (!doc) throw new NotFoundException('Document not found');
 
     try {
       await unlink(doc.filePath);
     } catch {
-      // 파일이 이미 없어도 계속 진행
+      // 파일이 이미 없어도 계속
     }
 
     // CASCADE로 chunks도 함께 삭제됨
-    await this.documentRepo.remove(doc);
+    await this.drizzle.db
+      .delete(documents)
+      .where(eq(documents.id, id));
   }
 }
