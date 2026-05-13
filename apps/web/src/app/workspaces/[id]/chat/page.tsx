@@ -17,28 +17,7 @@ import {
   SheetDescription,
 } from '@/components/ui/sheet';
 import { Send, FileText, Loader2, Settings, MessageSquare, Plus, Clock, CheckCircle, XCircle } from 'lucide-react';
-
-interface Citation {
-  chunkId: string;
-  documentId: string;
-  filename: string;
-  excerpt: string;
-  chunkIndex: number;
-}
-
-interface Message {
-  id: string;
-  role: 'user' | 'assistant';
-  content: string;
-  citations: Citation[];
-}
-
-interface StreamChunk {
-  type: 'token' | 'done' | 'error' | 'quota_exceeded';
-  content?: string;
-  citations?: Citation[];
-  error?: string;
-}
+import { useStreamChat, type Citation, type Message } from '@/hooks/useStreamChat';
 
 interface Session {
   id: string;
@@ -57,11 +36,9 @@ function ChatPage() {
   const params = useParams<{ id: string }>();
   const workspaceId = params.id;
 
-  const [messages, setMessages] = useState<Message[]>([]);
   const [sessions, setSessions] = useState<Session[]>([]);
   const [sessionId, setSessionId] = useState<string | undefined>();
   const [input, setInput] = useState('');
-  const [streaming, setStreaming] = useState(false);
   const [selectedCitation, setSelectedCitation] = useState<Citation | null>(null);
   const [sheetOpen, setSheetOpen] = useState(false);
   const [personaName, setPersonaName] = useState<string | null>(null);
@@ -70,17 +47,24 @@ function ChatPage() {
   const [docsOpen, setDocsOpen] = useState(false);
   const bottomRef = useRef<HTMLDivElement>(null);
 
+  const loadSessions = useCallback(async () => {
+    const res = await chatApi.sessions(workspaceId);
+    setSessions(res.data);
+    return res.data as Session[];
+  }, [workspaceId]);
+
+  const { messages, setMessages, streaming, sendMessage } = useStreamChat({
+    workspaceId,
+    sessionId,
+    onSessionCreated: setSessionId,
+    onSessionsRefresh: loadSessions,
+  });
+
   useEffect(() => {
     workspaceApi.get(workspaceId).then((res) => {
       setPersonaName(res.data.personaName);
     });
     documentApi.list(workspaceId).then((res) => setDocs(res.data));
-  }, [workspaceId]);
-
-  const loadSessions = useCallback(async () => {
-    const res = await chatApi.sessions(workspaceId);
-    setSessions(res.data);
-    return res.data as Session[];
   }, [workspaceId]);
 
   const loadSession = useCallback(async (sid?: string) => {
@@ -95,7 +79,7 @@ function ChatPage() {
       const msgs = await chatApi.messages(latest.id);
       setMessages(msgs.data.map((m) => ({ ...m })));
     }
-  }, [loadSessions]);
+  }, [loadSessions, setMessages]);
 
   useEffect(() => { loadSession(); }, [loadSession]);
   useEffect(() => { bottomRef.current?.scrollIntoView({ behavior: 'smooth' }); }, [messages]);
@@ -116,105 +100,9 @@ function ChatPage() {
   async function handleSend(e: React.FormEvent) {
     e.preventDefault();
     if (!input.trim() || streaming) return;
-
     const question = input.trim();
     setInput('');
-
-    const userMsg: Message = {
-      id: crypto.randomUUID(),
-      role: 'user',
-      content: question,
-      citations: [],
-    };
-    setMessages((prev) => [...prev, userMsg]);
-
-    const assistantId = crypto.randomUUID();
-    setMessages((prev) => [
-      ...prev,
-      { id: assistantId, role: 'assistant', content: '', citations: [] },
-    ]);
-    setStreaming(true);
-
-    try {
-      const res = await fetch(chatApi.queryUrl(), {
-        method: 'POST',
-        headers: chatApi.queryHeaders(),
-        body: JSON.stringify({ workspaceId, question, sessionId }),
-      });
-
-      if (!res.ok || !res.body) throw new Error('Stream failed');
-
-      const reader = res.body.getReader();
-      const decoder = new TextDecoder();
-      let buffer = '';
-
-      while (true) {
-        const { done, value } = await reader.read();
-        if (done) break;
-
-        buffer += decoder.decode(value, { stream: true });
-        const lines = buffer.split('\n');
-        buffer = lines.pop() ?? '';
-
-        for (const line of lines) {
-          if (!line.startsWith('data: ')) continue;
-          const raw = line.slice(6).trim();
-          if (!raw) continue;
-
-          const chunk: StreamChunk = JSON.parse(raw);
-
-          if (chunk.type === 'token' && chunk.content) {
-            setMessages((prev) =>
-              prev.map((m) =>
-                m.id === assistantId ? { ...m, content: m.content + chunk.content } : m,
-              ),
-            );
-          } else if (chunk.type === 'done') {
-            setMessages((prev) =>
-              prev.map((m) =>
-                m.id === assistantId ? { ...m, citations: chunk.citations ?? [] } : m,
-              ),
-            );
-            const updatedSessions = await loadSessions();
-            if (updatedSessions.length > 0 && !sessionId) {
-              setSessionId(updatedSessions[updatedSessions.length - 1].id);
-            }
-          } else if (chunk.type === 'quota_exceeded') {
-            setMessages((prev) =>
-              prev.map((m) =>
-                m.id === assistantId
-                  ? { ...m, content: '일일 API 한도를 초과했습니다. 내일 다시 시도해 주세요.' }
-                  : m,
-              ),
-            );
-          } else if (chunk.type === 'error') {
-            const isNoProvider = chunk.error?.includes('provider not configured') || chunk.error?.includes('AI provider');
-            setMessages((prev) =>
-              prev.map((m) =>
-                m.id === assistantId
-                  ? {
-                      ...m,
-                      content: isNoProvider
-                        ? '__NO_PROVIDER__'
-                        : `오류가 발생했습니다: ${chunk.error}`,
-                    }
-                  : m,
-              ),
-            );
-          }
-        }
-      }
-    } catch {
-      setMessages((prev) =>
-        prev.map((m) =>
-          m.id === assistantId
-            ? { ...m, content: '응답을 받아오는 중 오류가 발생했습니다.' }
-            : m,
-        ),
-      );
-    } finally {
-      setStreaming(false);
-    }
+    await sendMessage(question);
   }
 
   function openCitation(citation: Citation) {
