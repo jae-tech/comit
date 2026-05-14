@@ -11,6 +11,11 @@ const geistMono = Geist_Mono({
 export const metadata: Metadata = {
   title: "Comit",
   description: "BYOK RAG Workspace — upload documents and chat with AI",
+  icons: {
+    icon: "/icon.svg",
+    shortcut: "/icon.svg",
+    apple: "/icon.svg",
+  },
 };
 
 export default function RootLayout({

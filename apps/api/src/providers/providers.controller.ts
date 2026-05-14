@@ -14,7 +14,7 @@ import { ApiTags, ApiBearerAuth, ApiOperation } from '@nestjs/swagger';
 import { JwtAuthGuard } from '../common/guards/jwt-auth.guard';
 import { CurrentUser } from '../common/decorators/current-user.decorator';
 import { ProvidersService } from './providers.service';
-import type { CreateProviderDto } from '@orbit/shared';
+import type { CreateProviderDto } from '@comit/shared';
 
 @ApiTags('providers')
 @ApiBearerAuth()

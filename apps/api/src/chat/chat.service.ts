@@ -2,7 +2,7 @@ import { Injectable, NotFoundException } from '@nestjs/common';
 import { eq, and, sql } from 'drizzle-orm';
 import { Observable, Subject } from 'rxjs';
 import OpenAI from 'openai';
-import { GoogleGenerativeAI, TaskType } from '@google/generative-ai';
+import { GoogleGenerativeAI } from '@google/generative-ai';
 import { DrizzleService } from '../database/drizzle.service';
 import {
   chatSessions,
@@ -14,7 +14,7 @@ import {
 } from '../database/schema';
 import { ProvidersService } from '../providers/providers.service';
 import { WorkspacesService } from '../workspaces/workspaces.service';
-import { ChatQueryDto, ChatStreamChunk, Citation } from '@orbit/shared';
+import { ChatQueryDto, ChatStreamChunk, Citation } from '@comit/shared';
 
 const TOP_K = 5;
 const DEFAULT_SYSTEM_PROMPT = `You are a helpful assistant that answers questions based on the provided document context.
@@ -224,15 +224,24 @@ export class ChatService {
     let queryVector: number[];
 
     if (provider === 'gemini') {
-      const genai = new GoogleGenerativeAI(apiKey);
-      const model = genai.getGenerativeModel({ model: 'gemini-embedding-001' });
-      // eslint-disable-next-line @typescript-eslint/no-explicit-any
-      const result = await model.embedContent({
-        content: { role: 'user', parts: [{ text: question }] },
-        taskType: TaskType.RETRIEVAL_QUERY,
-        outputDimensionality: 768,
-      } as any);
-      queryVector = result.embedding.values;
+      // SDK는 outputDimensionality를 지원하지 않으므로 REST 직접 호출
+      const url = `https://generativelanguage.googleapis.com/v1beta/models/gemini-embedding-001:embedContent`;
+      const res = await fetch(url, {
+        method: 'POST',
+        headers: { 'Content-Type': 'application/json', 'x-goog-api-key': apiKey },
+        body: JSON.stringify({
+          model: 'models/gemini-embedding-001',
+          content: { role: 'user', parts: [{ text: question }] },
+          taskType: 'RETRIEVAL_QUERY',
+          outputDimensionality: 768,
+        }),
+      });
+      if (!res.ok) {
+        const errText = await res.text();
+        throw new Error(`Gemini embedContent failed [${res.status}]: ${errText}`);
+      }
+      const data = await res.json() as { embedding: { values: number[] } };
+      queryVector = data.embedding.values;
     } else {
       const openai = new OpenAI({ apiKey });
       const embResponse = await openai.embeddings.create({

@@ -2,7 +2,8 @@
 
 import { useRouter } from 'next/navigation';
 import { Button } from '@/components/ui/button';
-import { ArrowLeft, MessageSquare } from 'lucide-react';
+import { ArrowLeft } from 'lucide-react';
+import { ComitLogo } from '@/components/comit-logo';
 
 interface AppHeaderProps {
   /** 뒤로가기 대신 홈으로 이동할 때 true (홈페이지 헤더) */
@@ -35,9 +36,7 @@ export function AppHeader({ home, title, subtitle, right, backHref }: AppHeaderP
           {home ? (
             /* 홈: 브랜드 로고 */
             <div className="flex items-center gap-2">
-              <div className="w-6 h-6 rounded bg-blue-700 flex items-center justify-center shrink-0">
-                <MessageSquare className="h-3.5 w-3.5 text-white" />
-              </div>
+              <ComitLogo size={24} color="#1d4ed8" className="shrink-0" />
               <span className="text-sm font-semibold text-stone-900 tracking-tight">Comit</span>
             </div>
           ) : (

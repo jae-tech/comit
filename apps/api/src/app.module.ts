@@ -10,6 +10,7 @@ import { ProvidersModule } from './providers/providers.module';
 import { WorkspacesModule } from './workspaces/workspaces.module';
 import { DocumentsModule } from './documents/documents.module';
 import { ChatModule } from './chat/chat.module';
+import { DemoModule } from './demo/demo.module';
 
 @Module({
   imports: [
@@ -40,6 +41,7 @@ import { ChatModule } from './chat/chat.module';
     WorkspacesModule,
     DocumentsModule,
     ChatModule,
+    DemoModule,
   ],
   controllers: [AppController],
   providers: [AppService],

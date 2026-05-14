@@ -4,9 +4,8 @@ import type { Job } from 'bull';
 import { eq } from 'drizzle-orm';
 import { readFile, unlink } from 'fs/promises';
 // eslint-disable-next-line @typescript-eslint/no-require-imports
-const pdfParse = require('pdf-parse') as (buf: Buffer) => Promise<{ text: string }>;
+const { PDFParse } = require('pdf-parse') as { PDFParse: new (opts: { data: Uint8Array }) => { load(): Promise<unknown>; getText(): Promise<{ text: string }> } };
 import OpenAI from 'openai';
-import { GoogleGenerativeAI, TaskType } from '@google/generative-ai';
 import { DrizzleService } from '../database/drizzle.service';
 import { documents, documentChunks } from '../database/schema';
 import { ProvidersService } from '../providers/providers.service';
@@ -15,8 +14,9 @@ import { EMBEDDING_QUEUE } from './constants';
 const CHUNK_SIZE = 2000;
 const CHUNK_OVERLAP = 200;
 const OPENAI_EMBEDDING_MODEL = 'text-embedding-3-small';
-const GEMINI_EMBEDDING_MODEL = 'gemini-embedding-001';
+const GEMINI_EMBEDDING_MODEL = 'gemini-embedding-001'; // outputDimensionality=768로 직접 REST 호출 (SDK는 해당 파라미터 미지원)
 const EMBEDDING_DIM = 768;
+const GEMINI_API_BASE = 'https://generativelanguage.googleapis.com/v1beta';
 
 @Processor(EMBEDDING_QUEUE)
 export class EmbeddingProcessor {
@@ -122,17 +122,27 @@ export class EmbeddingProcessor {
       return response.data.map((d) => d.embedding);
     }
 
-    const genai = new GoogleGenerativeAI(apiKey);
-    const model = genai.getGenerativeModel({ model: GEMINI_EMBEDDING_MODEL });
-    const result = await model.batchEmbedContents({
-      // eslint-disable-next-line @typescript-eslint/no-explicit-any
+    // SDK는 outputDimensionality를 지원하지 않으므로 REST 직접 호출
+    const url = `${GEMINI_API_BASE}/models/${GEMINI_EMBEDDING_MODEL}:batchEmbedContents`;
+    const body = {
       requests: chunks.map((text) => ({
+        model: `models/${GEMINI_EMBEDDING_MODEL}`,
         content: { role: 'user', parts: [{ text }] },
-        taskType: TaskType.RETRIEVAL_DOCUMENT,
+        taskType: 'RETRIEVAL_DOCUMENT',
         outputDimensionality: EMBEDDING_DIM,
-      })) as any,
+      })),
+    };
+    const res = await fetch(url, {
+      method: 'POST',
+      headers: { 'Content-Type': 'application/json', 'x-goog-api-key': apiKey },
+      body: JSON.stringify(body),
     });
-    return result.embeddings.map((e) => e.values);
+    if (!res.ok) {
+      const errText = await res.text();
+      throw new Error(`Gemini batchEmbedContents failed [${res.status}]: ${errText}`);
+    }
+    const data = await res.json() as { embeddings: { values: number[] }[] };
+    return data.embeddings.map((e) => e.values);
   }
 
   private async deleteFile(filePath: string): Promise<void> {
@@ -147,8 +157,9 @@ export class EmbeddingProcessor {
     const ext = filename.split('.').pop()?.toLowerCase();
     const buffer = await readFile(filePath);
     if (ext === 'pdf') {
-      const data = await pdfParse(buffer);
-      return data.text;
+      const parser = new PDFParse({ data: new Uint8Array(buffer) });
+      const result = await parser.getText();
+      return result.text;
     }
     return buffer.toString('utf-8');
   }

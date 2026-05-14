@@ -10,7 +10,7 @@ import {
   customType,
 } from 'drizzle-orm/pg-core';
 import { relations } from 'drizzle-orm';
-import type { Citation } from '@orbit/shared';
+import type { Citation } from '@comit/shared';
 
 // pgvector 커스텀 타입
 const vector = (name: string, dim: number) =>

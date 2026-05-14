@@ -6,12 +6,12 @@ export interface ChatQueryDto {
   question: string;
 }
 
-export interface ChatStreamChunk {
-  type: 'token' | 'done' | 'error' | 'quota_exceeded';
-  content?: string;
-  citations?: Citation[];
-  error?: string;
-}
+export type ChatStreamChunk =
+  | { type: 'token'; content: string }
+  | { type: 'done'; citations: Citation[] }
+  | { type: 'error'; error: string }
+  | { type: 'quota_exceeded'; error?: string }
+  | { type: 'session_created'; sessionId: string };
 
 export interface ChatMessage {
   id: string;
