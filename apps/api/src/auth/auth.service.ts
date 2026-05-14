@@ -11,7 +11,7 @@ import * as bcrypt from 'bcrypt';
 import { eq } from 'drizzle-orm';
 import { DrizzleService } from '../database/drizzle.service';
 import { users, type User } from '../database/schema';
-import { RegisterDto, LoginDto, AuthTokens } from '@orbit/shared';
+import { RegisterDto, LoginDto, AuthTokens } from '@comit/shared';
 
 @Injectable()
 export class AuthService {

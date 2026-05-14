@@ -9,7 +9,7 @@ import OpenAI from 'openai';
 import { DrizzleService } from '../database/drizzle.service';
 import { aiProviders, type AiProvider } from '../database/schema';
 import { EncryptionService } from './encryption.service';
-import { CreateProviderDto, ProviderResponse } from '@orbit/shared';
+import { CreateProviderDto, ProviderResponse } from '@comit/shared';
 
 @Injectable()
 export class ProvidersService {

@@ -8,5 +8,6 @@ import { WorkspacesModule } from '../workspaces/workspaces.module';
   imports: [ProvidersModule, WorkspacesModule],
   controllers: [ChatController],
   providers: [ChatService],
+  exports: [ChatService],
 })
 export class ChatModule {}
