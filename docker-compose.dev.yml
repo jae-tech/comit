@@ -1,5 +1,7 @@
 # 로컬 개발용 — DB + Redis만 띄움
 # 사용: docker compose -f docker-compose.dev.yml up -d
+name: comit
+
 services:
 
   postgres:
