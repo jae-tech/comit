@@ -1,19 +1,20 @@
 # 로컬 개발용 — DB + Redis만 띄움
 # 사용: docker compose -f docker-compose.dev.yml up -d
 services:
+
   postgres:
     image: pgvector/pgvector:pg17
     restart: unless-stopped
     environment:
-      POSTGRES_USER: comit
-      POSTGRES_PASSWORD: comit_secret
-      POSTGRES_DB: comit
+      POSTGRES_USER: ${POSTGRES_USER:-comit}
+      POSTGRES_PASSWORD: ${POSTGRES_PASSWORD:-comit_secret}
+      POSTGRES_DB: ${POSTGRES_DB:-comit}
     ports:
       - "5432:5432"
     volumes:
       - postgres_dev_data:/var/lib/postgresql/data
     healthcheck:
-      test: ["CMD-SHELL", "pg_isready -U comit"]
+      test: ["CMD-SHELL", "pg_isready -U ${POSTGRES_USER:-comit}"]
       interval: 10s
       timeout: 5s
       retries: 5
@@ -25,6 +26,11 @@ services:
       - "6379:6379"
     volumes:
       - redis_dev_data:/data
+    healthcheck:
+      test: ["CMD", "redis-cli", "ping"]
+      interval: 10s
+      timeout: 5s
+      retries: 5
 
 volumes:
   postgres_dev_data:

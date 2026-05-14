@@ -1,4 +1,6 @@
 services:
+
+  # ── PostgreSQL + pgvector ───────────────────────────────
   postgres:
     image: pgvector/pgvector:pg17
     restart: unless-stopped
@@ -16,6 +18,7 @@ services:
       timeout: 5s
       retries: 5
 
+  # ── Redis ───────────────────────────────────────────────
   redis:
     image: redis:8.0-alpine
     restart: unless-stopped
@@ -29,6 +32,7 @@ services:
       timeout: 5s
       retries: 5
 
+  # ── NestJS API ──────────────────────────────────────────
   api:
     build:
       context: .
@@ -38,6 +42,7 @@ services:
     environment:
       DATABASE_URL: postgres://${POSTGRES_USER:-comit}:${POSTGRES_PASSWORD:-comit_secret}@postgres:5432/${POSTGRES_DB:-comit}
       REDIS_URL: redis://redis:6379
+      NODE_ENV: production
     ports:
       - "4000:4000"
     depends_on:
@@ -47,22 +52,33 @@ services:
         condition: service_healthy
     volumes:
       - uploads_data:/app/uploads
+    healthcheck:
+      test: ["CMD-SHELL", "wget -qO- http://localhost:4000/docs > /dev/null 2>&1 || exit 1"]
+      interval: 15s
+      timeout: 5s
+      retries: 5
+      start_period: 30s
 
+  # ── Next.js Web ─────────────────────────────────────────
   web:
     build:
       context: .
       dockerfile: apps/web/Dockerfile
     restart: unless-stopped
+    env_file: .env
     environment:
-      NEXT_PUBLIC_API_URL: ${NEXT_PUBLIC_API_URL:-http://localhost:4000}
+      NODE_ENV: production
     ports:
       - "3000:3000"
     depends_on:
-      - api
+      api:
+        condition: service_healthy
 
+  # ── Nginx (프로덕션 전용 — profiles: prod) ──────────────
   nginx:
     image: nginx:alpine
     restart: unless-stopped
+    profiles: ["prod"]
     ports:
       - "80:80"
       - "443:443"
