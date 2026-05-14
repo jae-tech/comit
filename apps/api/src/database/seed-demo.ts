@@ -54,8 +54,8 @@ const ENCRYPTION_KEY = process.env.ENCRYPTION_KEY;
 const DEMO_API_KEY = process.env.DEMO_API_KEY;
 const DEMO_PROVIDER = process.env.DEMO_PROVIDER ?? 'openai';
 const DEMO_MODEL = process.env.DEMO_MODEL ?? 'gpt-4o-mini';
-const DEMO_EMAIL = 'demo@comit.app';
-const DEMO_PASSWORD = process.env.DEMO_PASSWORD ?? 'demo-password-change-me';
+const DEMO_EMAIL = 'demo@com.it';
+const DEMO_PASSWORD = process.env.DEMO_PASSWORD ?? 'demo';
 const DEMO_WORKSPACE_NAME = 'Comit 데모';
 
 if (!DATABASE_URL) throw new Error('DATABASE_URL이 설정되지 않았습니다');
