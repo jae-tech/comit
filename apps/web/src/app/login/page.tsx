@@ -40,7 +40,7 @@ export default function LoginPage() {
           <div className="w-8 h-8 rounded-lg bg-blue-700 flex items-center justify-center">
             <MessageSquare className="h-4 w-4 text-white" />
           </div>
-          <span className="text-base font-semibold text-stone-900 tracking-tight">Orbit AI</span>
+          <span className="text-base font-semibold text-stone-900 tracking-tight">Comit</span>
         </div>
 
         <div className="bg-white rounded-lg border border-stone-200 p-8 shadow-sm">

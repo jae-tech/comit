@@ -38,7 +38,7 @@ export function AppHeader({ home, title, subtitle, right, backHref }: AppHeaderP
               <div className="w-6 h-6 rounded bg-blue-700 flex items-center justify-center shrink-0">
                 <MessageSquare className="h-3.5 w-3.5 text-white" />
               </div>
-              <span className="text-sm font-semibold text-stone-900 tracking-tight">Orbit AI</span>
+              <span className="text-sm font-semibold text-stone-900 tracking-tight">Comit</span>
             </div>
           ) : (
             /* 서브페이지: 뒤로가기 + 타이틀 */

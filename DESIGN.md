@@ -1,4 +1,4 @@
-# Orbit AI — Design System
+# Comit — Design System
 
 Design tokens and UI patterns extracted from `globals.css` and the component library. Use this as the reference when adding new UI.
 

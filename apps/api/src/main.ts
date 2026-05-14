@@ -7,7 +7,7 @@ import { AppModule } from './app.module';
 async function bootstrap() {
   const app = await NestFactory.create<NestFastifyApplication>(
     AppModule,
-    new FastifyAdapter({ logger: false }),
+    new FastifyAdapter({ logger: false, trustProxy: true }),
   );
 
   // @fastify/multipart — 파일 업로드
@@ -37,7 +37,7 @@ async function bootstrap() {
   );
 
   const config = new DocumentBuilder()
-    .setTitle('Orbit AI API')
+    .setTitle('Comit API')
     .setDescription('BYOK RAG Workspace API')
     .setVersion('1.0')
     .addBearerAuth()

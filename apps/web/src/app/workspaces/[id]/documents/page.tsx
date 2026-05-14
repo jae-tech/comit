@@ -38,8 +38,8 @@ function DocumentStatusBadge({ docId, workspaceId, initialStatus, filename }: {
   useEffect(() => {
     if (status === 'ready' || status === 'failed') return;
 
-    const token = localStorage.getItem('orbit-auth')
-      ? JSON.parse(localStorage.getItem('orbit-auth')!).state?.accessToken
+    const token = localStorage.getItem('comit-auth')
+      ? JSON.parse(localStorage.getItem('comit-auth')!).state?.accessToken
       : null;
 
     const url = `${documentApi.statusUrl(docId, workspaceId)}&token=${token ?? ''}`;

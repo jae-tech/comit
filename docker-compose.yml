@@ -3,15 +3,15 @@ services:
     image: pgvector/pgvector:pg16
     restart: unless-stopped
     environment:
-      POSTGRES_USER: ${POSTGRES_USER:-orbit}
-      POSTGRES_PASSWORD: ${POSTGRES_PASSWORD:-orbit_secret}
-      POSTGRES_DB: ${POSTGRES_DB:-orbit}
+      POSTGRES_USER: ${POSTGRES_USER:-comit}
+      POSTGRES_PASSWORD: ${POSTGRES_PASSWORD:-comit_secret}
+      POSTGRES_DB: ${POSTGRES_DB:-comit}
     ports:
       - "5432:5432"
     volumes:
       - postgres_data:/var/lib/postgresql/data
     healthcheck:
-      test: ["CMD-SHELL", "pg_isready -U ${POSTGRES_USER:-orbit}"]
+      test: ["CMD-SHELL", "pg_isready -U ${POSTGRES_USER:-comit}"]
       interval: 10s
       timeout: 5s
       retries: 5
@@ -36,7 +36,7 @@ services:
     restart: unless-stopped
     env_file: .env
     environment:
-      DATABASE_URL: postgres://${POSTGRES_USER:-orbit}:${POSTGRES_PASSWORD:-orbit_secret}@postgres:5432/${POSTGRES_DB:-orbit}
+      DATABASE_URL: postgres://${POSTGRES_USER:-comit}:${POSTGRES_PASSWORD:-comit_secret}@postgres:5432/${POSTGRES_DB:-comit}
       REDIS_URL: redis://redis:6379
     ports:
       - "4000:4000"

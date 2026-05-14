@@ -22,8 +22,8 @@ pnpm db:migrate   # run pending migrations
 Run commands scoped to a single package:
 
 ```bash
-pnpm --filter @orbit/api dev
-pnpm --filter @orbit/web dev
+pnpm --filter @comit/api dev
+pnpm --filter @comit/web dev
 ```
 
 ### API-specific
@@ -77,7 +77,7 @@ Key modules in `src/`:
 
 Key patterns:
 - `src/lib/api.ts` — all API calls via axios with a `useAuthStore` interceptor that injects the JWT Bearer token on every request and clears auth + redirects to `/login` on 401. `demoApi` object provides unauthenticated URL helpers for demo endpoints.
-- `src/store/auth.ts` — Zustand store persisted to localStorage as `orbit-auth`; holds `accessToken` and `refreshToken`.
+- `src/store/auth.ts` — Zustand store persisted to localStorage as `comit-auth`; holds `accessToken` and `refreshToken`.
 - Chat streaming uses `fetch` with SSE (not EventSource, since EventSource only supports GET). See `chatApi.queryUrl()` / `chatApi.queryHeaders()` in `api.ts`.
 - `src/hooks/useDemoChat.ts` — demo-only hook; manages session ID via `useRef`, streams SSE chunks, handles `session_created`/`token`/`done`/`quota_exceeded`/`error` chunk types.
 - `src/hooks/useStreamChat.ts` — authenticated workspace chat hook (mirrors demo hook pattern but uses JWT headers).

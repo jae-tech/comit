@@ -78,7 +78,7 @@ docker compose up -d
 ## 프로젝트 구조
 
 ```
-orbit/
+comit/
 ├── apps/
 │   ├── api/          # NestJS 백엔드 (포트 4000)
 │   │   └── src/
@@ -117,8 +117,8 @@ pnpm db:generate      # 새 마이그레이션 생성
 특정 앱만 실행:
 
 ```bash
-pnpm --filter @orbit/api dev
-pnpm --filter @orbit/web dev
+pnpm --filter @comit/api dev
+pnpm --filter @comit/web dev
 ```
 
 ## 사용 방법
@@ -135,7 +135,7 @@ pnpm --filter @orbit/web dev
 
 | 변수 | 설명 | 예시 |
 |---|---|---|
-| `DATABASE_URL` | PostgreSQL 연결 문자열 | `postgres://orbit:secret@localhost:5432/orbit` |
+| `DATABASE_URL` | PostgreSQL 연결 문자열 | `postgres://comit:secret@localhost:5432/comit` |
 | `REDIS_URL` | Redis 연결 문자열 | `redis://localhost:6379` |
 | `JWT_SECRET` | JWT 서명 시크릿 | 임의의 긴 문자열 |
 | `JWT_ACCESS_EXPIRES` | 액세스 토큰 만료 | `15m` |

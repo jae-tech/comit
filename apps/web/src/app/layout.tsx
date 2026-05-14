@@ -9,7 +9,7 @@ const geistMono = Geist_Mono({
 });
 
 export const metadata: Metadata = {
-  title: "Orbit AI",
+  title: "Comit",
   description: "BYOK RAG Workspace — upload documents and chat with AI",
 };
 
