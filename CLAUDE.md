@@ -4,7 +4,7 @@ This file provides guidance to Claude Code (claude.ai/code) when working with co
 
 ## Overview
 
-Orbit is a BYOK (Bring Your Own Key) RAG workspace — users upload documents and chat with AI using their own API keys. It's a pnpm + Turborepo monorepo with two apps and one shared package.
+Comit is a BYOK (Bring Your Own Key) RAG workspace — users upload documents and chat with AI using their own API keys. It's a pnpm + Turborepo monorepo with two apps and one shared package.
 
 ## Commands
 

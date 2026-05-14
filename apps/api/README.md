@@ -1,4 +1,4 @@
-# Orbit API
+# Comit API
 
 NestJS + Fastify 백엔드 (포트 4000).
 
