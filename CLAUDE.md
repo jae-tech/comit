@@ -58,6 +58,7 @@ Key modules in `src/`:
 | `workspaces/` | Workspace CRUD; all other resources are scoped to a workspace |
 | `documents/` | File upload → Bull queue → `EmbeddingProcessor` (chunking + OpenAI embeddings → pgvector) |
 | `chat/` | RAG query: pgvector cosine similarity → LLM streaming via SSE (`Observable<MessageEvent>`) |
+| `demo/` | Public demo endpoints (no JWT): `/demo/chat` SSE, `/demo/docs`, `/demo/info`; rate-limited via `DemoThrottlerGuard` (10 req/60s per IP); `DemoAdminGuard` protects future write paths |
 | `database/` | TypeORM entities, migrations, `DatabaseInitService` (ensures pgvector extension on boot) |
 | `common/` | `@CurrentUser()` param decorator, `JwtAuthGuard` |
 
@@ -75,10 +76,13 @@ Key modules in `src/`:
 **Note from `apps/web/AGENTS.md`:** This Next.js version has breaking changes from older versions — APIs, conventions, and file structure may differ from training data. Read `node_modules/next/dist/docs/` before writing Next.js-specific code.
 
 Key patterns:
-- `src/lib/api.ts` — all API calls via axios with a `useAuthStore` interceptor that injects the JWT Bearer token on every request and clears auth + redirects to `/login` on 401.
+- `src/lib/api.ts` — all API calls via axios with a `useAuthStore` interceptor that injects the JWT Bearer token on every request and clears auth + redirects to `/login` on 401. `demoApi` object provides unauthenticated URL helpers for demo endpoints.
 - `src/store/auth.ts` — Zustand store persisted to localStorage as `orbit-auth`; holds `accessToken` and `refreshToken`.
 - Chat streaming uses `fetch` with SSE (not EventSource, since EventSource only supports GET). See `chatApi.queryUrl()` / `chatApi.queryHeaders()` in `api.ts`.
-- Routes: `/login`, `/register`, `/settings` (provider config), `/workspaces`, `/workspaces/[id]/chat`, `/workspaces/[id]/documents`.
+- `src/hooks/useDemoChat.ts` — demo-only hook; manages session ID via `useRef`, streams SSE chunks, handles `session_created`/`token`/`done`/`quota_exceeded`/`error` chunk types.
+- `src/hooks/useStreamChat.ts` — authenticated workspace chat hook (mirrors demo hook pattern but uses JWT headers).
+- `src/middleware.ts` — Next.js middleware: rewrites `demo.com.it/*` → `/demo/*` internally; redirects `/demo/*` on prod main domain to `demo.com.it`.
+- Routes: `/login`, `/register`, `/settings` (provider config), `/workspaces`, `/workspaces/[id]/chat`, `/workspaces/[id]/documents`, `/demo` (public chatbot widget), `/demo/admin` (read-only setup info).
 
 ### Shared (`packages/shared`)
 
@@ -96,6 +100,14 @@ JWT_REFRESH_EXPIRES=  # e.g. 7d
 ENCRYPTION_KEY=       # 64 hex chars (32-byte AES key)
 FRONTEND_URL=         # comma-separated allowed origins, e.g. http://localhost:3000
 NEXT_PUBLIC_API_URL=  # frontend → API base URL, e.g. http://localhost:4000
+
+# Demo module (optional — omit to disable demo endpoints entirely)
+DEMO_ENABLED=true             # set false to return 503 on all /demo/* routes
+DEMO_USER_ID=                 # UUID of the pre-seeded demo user
+DEMO_WORKSPACE_ID=            # UUID of the demo workspace
+DEMO_ADMIN_TOKEN=             # static Bearer token for future write paths (DemoAdminGuard)
+DEMO_HIDE_DOCS=false          # set true to omit document list from /demo/docs response
+DEMO_DOMAIN=demo.com.it       # hostname that triggers middleware rewrite to /demo/*
 ```
 
 ## Database
@@ -105,6 +117,10 @@ PostgreSQL with pgvector extension. Schema managed via TypeORM migrations in `ap
 Key tables: `users`, `workspaces`, `ai_providers`, `documents`, `document_chunks` (with `vector(1536)` embedding column + HNSW index), `chat_sessions`, `chat_messages`.
 
 When adding new entities, register them in the relevant module's `TypeOrmModule.forFeature([...])` — `autoLoadEntities: true` in `AppModule` picks them up automatically.
+
+## Design System
+
+UI tokens, color palette, typography, component patterns, and page layout rules are documented in [`DESIGN.md`](./DESIGN.md). Refer to it before adding new UI — especially for color tokens (`bg-[#faf9f7]`, `border-stone-200`, etc.), border-radius conventions, and status badge patterns.
 
 ## Testing
 

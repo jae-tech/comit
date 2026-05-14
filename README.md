@@ -9,6 +9,7 @@
 - **워크스페이스별 AI 페르소나** — 워크스페이스마다 시스템 프롬프트와 페르소나 이름을 커스텀할 수 있습니다
 - **BYOK (Bring Your Own Key)** — OpenAI, Anthropic, Gemini API 키를 직접 등록해 사용합니다. API 비용은 직접 부담하고, 키는 AES-256-GCM으로 암호화해 저장됩니다
 - **실시간 스트리밍** — 채팅 응답과 임베딩 진행 상황 모두 SSE로 실시간 표시됩니다
+- **공개 데모 페이지** — 회원가입 없이 바로 체험할 수 있는 플로팅 챗봇 위젯. IP당 분당 10회 요청 제한. `demo.com.it`에서 별도 도메인으로 운영 가능
 
 ## 스택
 
@@ -85,13 +86,17 @@ orbit/
 │   │       ├── workspaces/   # 워크스페이스 CRUD
 │   │       ├── documents/    # 파일 업로드 + 임베딩 처리
 │   │       ├── chat/         # RAG 쿼리 + SSE 스트리밍
+│   │       ├── demo/         # 공개 데모 엔드포인트 (JWT 불필요)
 │   │       ├── providers/    # BYOK API 키 관리
 │   │       └── database/     # TypeORM 엔티티 + 마이그레이션
 │   └── web/          # Next.js 프론트엔드 (포트 3000)
 │       └── src/
 │           ├── app/          # App Router 페이지
+│           │   └── demo/     # 공개 데모 페이지 + 어드민 정보 페이지
 │           ├── components/   # 공통 UI 컴포넌트
+│           ├── hooks/        # useDemoChat, useStreamChat
 │           ├── lib/          # API 클라이언트
+│           ├── middleware.ts # demo.com.it 도메인 라우팅
 │           └── store/        # Zustand 인증 스토어
 ├── packages/
 │   └── shared/       # 공유 TypeScript 타입
@@ -138,3 +143,9 @@ pnpm --filter @orbit/web dev
 | `ENCRYPTION_KEY` | API 키 암호화용 AES 키 | `openssl rand -hex 32` |
 | `NEXT_PUBLIC_API_URL` | 프론트엔드 → API URL | `http://localhost:4000` |
 | `FRONTEND_URL` | CORS 허용 origin | `http://localhost:3000` |
+| `DEMO_ENABLED` | 데모 기능 활성화 여부 | `true` |
+| `DEMO_USER_ID` | 데모 전용 사용자 UUID | DB에서 미리 생성 |
+| `DEMO_WORKSPACE_ID` | 데모 워크스페이스 UUID | DB에서 미리 생성 |
+| `DEMO_ADMIN_TOKEN` | 데모 어드민 Bearer 토큰 | `openssl rand -hex 32` |
+| `DEMO_HIDE_DOCS` | 문서 목록 숨김 여부 | `false` |
+| `DEMO_DOMAIN` | 데모 전용 도메인 | `demo.com.it` |
