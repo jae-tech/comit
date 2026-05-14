@@ -29,7 +29,7 @@ import {
 } from 'crypto';
 import * as fs from 'fs';
 import * as path from 'path';
-import * as schema from './schema/index.js';
+import * as schema from './schema/index';
 
 // ─── 환경변수 로드 ────────────────────────────────────────────────────────────
 

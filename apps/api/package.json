@@ -22,7 +22,7 @@
     "db:migrate": "drizzle-kit migrate",
     "db:push": "drizzle-kit push",
     "db:studio": "drizzle-kit studio",
-    "seed:demo": "node --loader ts-node/esm src/database/seed-demo.ts"
+    "seed:demo": "tsx src/database/seed-demo.ts"
   },
   "dependencies": {
     "@anthropic-ai/sdk": "^0.96.0",
