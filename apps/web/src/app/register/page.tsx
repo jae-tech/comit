@@ -7,7 +7,7 @@ import { authApi } from '@/lib/api';
 import { useAuthStore } from '@/store/auth';
 import { Button } from '@/components/ui/button';
 import { Input } from '@/components/ui/input';
-import { MessageSquare } from 'lucide-react';
+import { ComitLogo } from '@/components/comit-logo';
 
 export default function RegisterPage() {
   const router = useRouter();
@@ -42,9 +42,7 @@ export default function RegisterPage() {
       <div className="w-full max-w-sm">
         {/* Brand */}
         <div className="flex items-center gap-2 justify-center mb-8">
-          <div className="w-8 h-8 rounded-lg bg-blue-700 flex items-center justify-center">
-            <MessageSquare className="h-4 w-4 text-white" />
-          </div>
+          <ComitLogo size={32} color="#1d4ed8" />
           <span className="text-base font-semibold text-stone-900 tracking-tight">Comit</span>
         </div>
 

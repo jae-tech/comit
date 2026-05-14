@@ -77,6 +77,46 @@ api.interceptors.response.use(
   },
 );
 
+// ── authFetch — fetch() wrapper with 401 auto-refresh ─────────────
+// Axios 인터셉터가 커버하지 않는 fetch() 기반 경로(SSE 스트리밍 등)에 사용.
+// 401 수신 시 /auth/refresh를 호출하고 원본 요청을 재시도한다.
+export async function authFetch(url: string, init?: RequestInit): Promise<Response> {
+  const token = typeof window !== 'undefined'
+    ? useAuthStore.getState().accessToken
+    : null;
+
+  const headers = new Headers(init?.headers);
+  if (token) headers.set('Authorization', `Bearer ${token}`);
+
+  const res = await fetch(url, { ...init, headers });
+  if (res.status !== 401) return res;
+
+  const { refreshToken, setTokens, clear } = useAuthStore.getState();
+  if (!refreshToken) {
+    clear();
+    window.location.href = '/login';
+    return res;
+  }
+
+  try {
+    const refreshRes = await api.post<{ accessToken: string; refreshToken: string }>(
+      '/auth/refresh',
+      { refreshToken },
+    );
+    const { accessToken: newAccess, refreshToken: newRefresh } = refreshRes.data;
+    setTokens(newAccess, newRefresh);
+
+    const retryHeaders = new Headers(init?.headers);
+    retryHeaders.set('Authorization', `Bearer ${newAccess}`);
+    return fetch(url, { ...init, headers: retryHeaders });
+  } catch {
+    console.warn('[authFetch] token refresh failed — redirecting to /login');
+    clear();
+    window.location.href = '/login';
+    return res;
+  }
+}
+
 // ── Auth ──────────────────────────────────────────────
 export const authApi = {
   register: (email: string, password: string) =>
@@ -161,4 +201,28 @@ export const chatApi = {
       ...(token ? { Authorization: `Bearer ${token}` } : {}),
     };
   },
+};
+
+// ── Demo (public, no auth) ────────────────────────────
+export const demoApi = {
+  chatUrl: () => `${BASE}/demo/chat`,
+  docsUrl: () => `${BASE}/demo/docs`,
+  infoUrl: () => `${BASE}/demo/info`,
+};
+
+// ── Demo Admin (DEMO_ADMIN_TOKEN 인증) ────────────────
+export const demoAdminApi = {
+  settingsUrl: () => `${BASE}/demo/admin/settings`,
+  updateSettings: (
+    token: string,
+    payload: { personaName?: string; systemPrompt?: string },
+  ) =>
+    fetch(`${BASE}/demo/admin/settings`, {
+      method: 'PATCH',
+      headers: {
+        'Content-Type': 'application/json',
+        Authorization: `Bearer ${token}`,
+      },
+      body: JSON.stringify(payload),
+    }),
 };

@@ -1,7 +1,7 @@
 'use client';
 
-import { useState, useEffect, useRef, useCallback } from 'react';
-import { useRouter, useParams } from 'next/navigation';
+import { useState, useEffect, useRef, useCallback, Suspense } from 'react';
+import { useRouter, useParams, useSearchParams } from 'next/navigation';
 import Link from 'next/link';
 import ReactMarkdown from 'react-markdown';
 import { chatApi, workspaceApi, documentApi } from '@/lib/api';
@@ -34,10 +34,13 @@ interface Doc {
 function ChatPage() {
   const router = useRouter();
   const params = useParams<{ id: string }>();
+  const searchParams = useSearchParams();
   const workspaceId = params.id;
 
   const [sessions, setSessions] = useState<Session[]>([]);
-  const [sessionId, setSessionId] = useState<string | undefined>();
+  const [sessionId, setSessionId] = useState<string | undefined>(
+    searchParams.get('session') ?? undefined,
+  );
   const [input, setInput] = useState('');
   const [selectedCitation, setSelectedCitation] = useState<Citation | null>(null);
   const [sheetOpen, setSheetOpen] = useState(false);
@@ -46,6 +49,17 @@ function ChatPage() {
   const [docs, setDocs] = useState<Doc[]>([]);
   const [docsOpen, setDocsOpen] = useState(false);
   const bottomRef = useRef<HTMLDivElement>(null);
+
+  const setSessionIdWithUrl = useCallback((sid: string | undefined) => {
+    setSessionId(sid);
+    const url = new URL(window.location.href);
+    if (sid) {
+      url.searchParams.set('session', sid);
+    } else {
+      url.searchParams.delete('session');
+    }
+    router.replace(url.pathname + url.search, { scroll: false });
+  }, [router]);
 
   const loadSessions = useCallback(async () => {
     const res = await chatApi.sessions(workspaceId);
@@ -56,7 +70,7 @@ function ChatPage() {
   const { messages, setMessages, streaming, sendMessage } = useStreamChat({
     workspaceId,
     sessionId,
-    onSessionCreated: setSessionId,
+    onSessionCreated: setSessionIdWithUrl,
     onSessionsRefresh: loadSessions,
   });
 
@@ -69,29 +83,30 @@ function ChatPage() {
 
   const loadSession = useCallback(async (sid?: string) => {
     const sessionList = await loadSessions();
-    if (sid) {
-      setSessionId(sid);
-      const msgs = await chatApi.messages(sid);
+    const targetId = sid ?? searchParams.get('session') ?? undefined;
+    if (targetId) {
+      setSessionId(targetId);
+      const msgs = await chatApi.messages(targetId);
       setMessages(msgs.data.map((m) => ({ ...m })));
     } else if (sessionList.length > 0) {
       const latest = sessionList[sessionList.length - 1];
-      setSessionId(latest.id);
+      setSessionIdWithUrl(latest.id);
       const msgs = await chatApi.messages(latest.id);
       setMessages(msgs.data.map((m) => ({ ...m })));
     }
-  }, [loadSessions, setMessages]);
+  }, [loadSessions, setMessages, searchParams, setSessionIdWithUrl]);
 
   useEffect(() => { loadSession(); }, [loadSession]);
   useEffect(() => { bottomRef.current?.scrollIntoView({ behavior: 'smooth' }); }, [messages]);
 
   function startNewSession() {
-    setSessionId(undefined);
+    setSessionIdWithUrl(undefined);
     setMessages([]);
     setSidebarOpen(false);
   }
 
   async function switchSession(sid: string) {
-    setSessionId(sid);
+    setSessionIdWithUrl(sid);
     const msgs = await chatApi.messages(sid);
     setMessages(msgs.data.map((m) => ({ ...m })));
     setSidebarOpen(false);
@@ -112,7 +127,7 @@ function ChatPage() {
 
   function formatSessionDate(iso: string) {
     const d = new Date(iso);
-    return d.toLocaleDateString('ko-KR', { month: 'short', day: 'numeric', hour: '2-digit', minute: '2-digit' });
+    return d.toLocaleString(undefined, { month: 'short', day: 'numeric', hour: '2-digit', minute: '2-digit' });
   }
 
   return (
@@ -345,7 +360,9 @@ function ChatPage() {
 export default function ChatPageWrapper() {
   return (
     <AuthGuard>
-      <ChatPage />
+      <Suspense>
+        <ChatPage />
+      </Suspense>
     </AuthGuard>
   );
 }
