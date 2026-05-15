@@ -2,7 +2,10 @@ import { createParamDecorator, ExecutionContext } from '@nestjs/common';
 
 export const CurrentUser = createParamDecorator(
   (_data: unknown, ctx: ExecutionContext) => {
-    const request = ctx.switchToHttp().getRequest();
-    return request.user as { id: string; email: string };
+    // eslint-disable-next-line @typescript-eslint/no-unsafe-member-access
+    return ctx.switchToHttp().getRequest().user as {
+      id: string;
+      email: string;
+    };
   },
 );

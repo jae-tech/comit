@@ -8,6 +8,20 @@
       "when": 1778737683765,
       "tag": "0000_typical_unus",
       "breakpoints": true
+    },
+    {
+      "idx": 1,
+      "version": "7",
+      "when": 1747353600000,
+      "tag": "0001_add_workspaces_personas",
+      "breakpoints": true
+    },
+    {
+      "idx": 2,
+      "version": "7",
+      "when": 1747440000000,
+      "tag": "0002_add_active_provider",
+      "breakpoints": true
     }
   ]
 }

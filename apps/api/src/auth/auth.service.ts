@@ -69,7 +69,8 @@ export class AuthService {
       throw new UnauthorizedException('Invalid token');
     }
 
-    if (payload.type !== 'refresh') throw new UnauthorizedException('Invalid token type');
+    if (payload.type !== 'refresh')
+      throw new UnauthorizedException('Invalid token type');
 
     const [user] = await this.drizzle.db
       .select()
@@ -88,7 +89,7 @@ export class AuthService {
   }
 
   private async revokeRefreshToken(token: string): Promise<void> {
-    const refreshExpires = this.config.get('JWT_REFRESH_EXPIRES', '7d');
+    const refreshExpires = this.config.get<string>('JWT_REFRESH_EXPIRES', '7d');
     const ttlSeconds = this.parseDurationToSeconds(refreshExpires);
     await this.redis.set(`rt_block:${token}`, '1', 'EX', ttlSeconds);
   }
