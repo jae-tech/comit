@@ -1,9 +1,20 @@
-import { Controller, Get, Post, Patch, Delete, Body, Param, UseGuards, HttpCode } from '@nestjs/common';
+import {
+  Controller,
+  Get,
+  Post,
+  Patch,
+  Delete,
+  Body,
+  Param,
+  UseGuards,
+  HttpCode,
+} from '@nestjs/common';
 import { ApiTags, ApiBearerAuth, ApiOperation } from '@nestjs/swagger';
 import { JwtAuthGuard } from '../common/guards/jwt-auth.guard';
 import { CurrentUser } from '../common/decorators/current-user.decorator';
 import { WorkspacesService } from './workspaces.service';
 import { UpdateWorkspaceDto } from './dto/update-workspace.dto';
+import type { SetActiveProviderDto } from '@comit/shared';
 
 @ApiTags('workspaces')
 @ApiBearerAuth()
@@ -14,10 +25,7 @@ export class WorkspacesController {
 
   @Post()
   @ApiOperation({ summary: 'Workspace 생성' })
-  create(
-    @CurrentUser() user: { id: string },
-    @Body('name') name: string,
-  ) {
+  create(@CurrentUser() user: { id: string }, @Body('name') name: string) {
     return this.workspacesService.create(user.id, name);
   }
 
@@ -41,6 +49,20 @@ export class WorkspacesController {
     @Body() dto: UpdateWorkspaceDto,
   ) {
     return this.workspacesService.update(id, user.id, dto);
+  }
+
+  @Patch(':id/provider')
+  @ApiOperation({ summary: 'Workspace의 활성 AI Provider 설정' })
+  setActiveProvider(
+    @CurrentUser() user: { id: string },
+    @Param('id') id: string,
+    @Body() dto: SetActiveProviderDto,
+  ) {
+    return this.workspacesService.setActiveProvider(
+      id,
+      user.id,
+      dto.providerId,
+    );
   }
 
   @Delete(':id')

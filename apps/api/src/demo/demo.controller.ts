@@ -3,18 +3,22 @@ import {
   Post,
   Get,
   Patch,
+  Put,
+  Delete,
   Body,
+  Param,
   UseGuards,
   Res,
   HttpCode,
   HttpStatus,
+  NotFoundException,
+  ForbiddenException,
 } from '@nestjs/common';
 import { IsString, IsNotEmpty, IsOptional, MaxLength } from 'class-validator';
 import { ApiTags, ApiOperation } from '@nestjs/swagger';
 import type { FastifyReply } from 'fastify';
 import { DemoService } from './demo.service';
 import { DemoThrottlerGuard } from './demo-throttler.guard';
-import { DemoAdminGuard } from './demo-admin.guard';
 
 class DemoChatDto {
   @IsString()
@@ -39,6 +43,18 @@ class DemoSettingsDto {
   systemPrompt?: string;
 }
 
+class AddPersonaDto {
+  @IsString()
+  @IsNotEmpty()
+  @MaxLength(100)
+  name!: string;
+
+  @IsString()
+  @IsNotEmpty()
+  @MaxLength(4000)
+  prompt!: string;
+}
+
 @ApiTags('demo')
 @UseGuards(DemoThrottlerGuard)
 @Controller('demo')
@@ -52,20 +68,23 @@ export class DemoController {
   @Post('chat')
   @HttpCode(HttpStatus.OK)
   @ApiOperation({ summary: '데모 채팅 스트림 (SSE, 인증 불필요)' })
-  async chat(
-    @Body() dto: DemoChatDto,
-    @Res() reply: FastifyReply,
-  ) {
-    const allowedOrigins = (
-      process.env.FRONTEND_URL || 'http://localhost:3000'
-    ).split(',').map((o) => o.trim());
-    const reqOrigin = (reply.request as { headers: Record<string, string> }).headers['origin'] ?? '';
-    const origin = allowedOrigins.includes(reqOrigin) ? reqOrigin : allowedOrigins[0];
+  // eslint-disable-next-line @typescript-eslint/require-await
+  async chat(@Body() dto: DemoChatDto, @Res() reply: FastifyReply) {
+    const allowedOrigins = (process.env.FRONTEND_URL || 'http://localhost:3000')
+      .split(',')
+      .map((o) => o.trim());
+    const reqOrigin =
+      (reply.request as { headers: Record<string, string> }).headers[
+        'origin'
+      ] ?? '';
+    const origin = allowedOrigins.includes(reqOrigin)
+      ? reqOrigin
+      : allowedOrigins[0];
 
     reply.raw.writeHead(200, {
       'Content-Type': 'text/event-stream',
       'Cache-Control': 'no-cache',
-      'Connection': 'keep-alive',
+      Connection: 'keep-alive',
       'Access-Control-Allow-Origin': origin,
     });
 
@@ -91,33 +110,69 @@ export class DemoController {
 
   /**
    * GET /demo/docs
-   * 데모 워크스페이스 문서 목록 (공개).
    */
   @Get('docs')
-  @ApiOperation({ summary: '데모 문서 목록 (공개)' })
+  @ApiOperation({ summary: '데모 문서 목록' })
   getDocs() {
     return this.demoService.getDocs();
   }
 
   /**
    * GET /demo/info
-   * 데모 워크스페이스 공개 정보 (personaName, systemPrompt, model, documentCount).
    */
   @Get('info')
-  @ApiOperation({ summary: '데모 워크스페이스 공개 정보' })
+  @ApiOperation({ summary: '데모 워크스페이스 정보' })
   getInfo() {
     return this.demoService.getInfo();
   }
 
   /**
-   * PATCH /demo/admin/settings
-   * 데모 워크스페이스 설정 변경 (DemoAdminGuard 보호).
+   * PATCH /demo/settings
    */
-  @Patch('admin/settings')
-  @UseGuards(DemoAdminGuard)
+  @Patch('settings')
   @HttpCode(HttpStatus.NO_CONTENT)
-  @ApiOperation({ summary: '데모 워크스페이스 설정 변경 (관리자 전용)' })
+  @ApiOperation({ summary: '데모 워크스페이스 설정 변경' })
   updateSettings(@Body() dto: DemoSettingsDto) {
     return this.demoService.updateSettings(dto);
+  }
+
+  /**
+   * POST /demo/personas
+   */
+  @Post('personas')
+  @HttpCode(HttpStatus.CREATED)
+  @ApiOperation({ summary: '페르소나 추가' })
+  addPersona(@Body() dto: AddPersonaDto) {
+    return this.demoService.addPersona(dto);
+  }
+
+  /**
+   * PUT /demo/personas/:id/activate
+   */
+  @Put('personas/:id/activate')
+  @HttpCode(HttpStatus.NO_CONTENT)
+  @ApiOperation({ summary: '페르소나 활성화' })
+  async activatePersona(@Param('id') id: string) {
+    try {
+      await this.demoService.activatePersona(id);
+    } catch {
+      throw new NotFoundException(`Persona ${id} not found`);
+    }
+  }
+
+  /**
+   * DELETE /demo/personas/:id
+   */
+  @Delete('personas/:id')
+  @HttpCode(HttpStatus.NO_CONTENT)
+  @ApiOperation({ summary: '페르소나 삭제' })
+  async removePersona(@Param('id') id: string) {
+    try {
+      await this.demoService.removePersona(id);
+    } catch (e: unknown) {
+      const msg = e instanceof Error ? e.message : '';
+      if (msg.includes('기본 페르소나')) throw new ForbiddenException(msg);
+      throw e;
+    }
   }
 }

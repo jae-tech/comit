@@ -22,11 +22,7 @@ import postgres from 'postgres';
 import { drizzle } from 'drizzle-orm/postgres-js';
 import { eq } from 'drizzle-orm';
 import * as bcrypt from 'bcrypt';
-import {
-  createCipheriv,
-  createDecipheriv,
-  randomBytes,
-} from 'crypto';
+import { createCipheriv, randomBytes } from 'crypto';
 import * as fs from 'fs';
 import * as path from 'path';
 import * as schema from './schema/index';
@@ -47,6 +43,34 @@ if (fs.existsSync(envPath)) {
   }
 }
 
+// ─── 기본 페르소나 ────────────────────────────────────────────────────────────
+
+const DEFAULT_PERSONAS = [
+  {
+    id: '00000000-0000-0000-0000-000000000001',
+    name: 'Comit AI',
+    prompt:
+      '당신은 업로드된 문서를 기반으로 질문에 답변하는 AI 어시스턴트입니다. ' +
+      '문서에서 찾을 수 없는 내용은 솔직하게 모른다고 답변하세요.',
+  },
+  {
+    id: '00000000-0000-0000-0000-000000000002',
+    name: '고객지원봇',
+    prompt:
+      '당신은 친절하고 전문적인 고객지원 담당자입니다. ' +
+      '고객의 질문에 공감하며 명확하고 간결하게 답변하세요. ' +
+      '답을 모를 경우 담당팀으로 연결해드리겠다고 안내하세요.',
+  },
+  {
+    id: '00000000-0000-0000-0000-000000000003',
+    name: '기술문서봇',
+    prompt:
+      '당신은 기술 문서를 정확하게 설명하는 엔지니어링 어시스턴트입니다. ' +
+      '전문 용어를 정확히 사용하고, 필요 시 코드 예시나 단계별 설명을 제공하세요. ' +
+      '문서에 없는 내용은 추측하지 말고 명확히 범위를 밝히세요.',
+  },
+];
+
 // ─── 설정 ────────────────────────────────────────────────────────────────────
 
 const DATABASE_URL = process.env.DATABASE_URL;
@@ -60,7 +84,9 @@ const DEMO_WORKSPACE_NAME = 'Comit 데모';
 
 if (!DATABASE_URL) throw new Error('DATABASE_URL이 설정되지 않았습니다');
 if (!ENCRYPTION_KEY || ENCRYPTION_KEY.length !== 64)
-  throw new Error('ENCRYPTION_KEY는 64자 hex 문자열이어야 합니다 (openssl rand -hex 32)');
+  throw new Error(
+    'ENCRYPTION_KEY는 64자 hex 문자열이어야 합니다 (openssl rand -hex 32)',
+  );
 if (!DEMO_API_KEY)
   throw new Error('DEMO_API_KEY가 설정되지 않았습니다 — .env에 추가하세요');
 
@@ -70,7 +96,10 @@ function encrypt(plaintext: string): { encryptedKey: string; iv: string } {
   const key = Buffer.from(ENCRYPTION_KEY!, 'hex');
   const iv = randomBytes(12);
   const cipher = createCipheriv('aes-256-gcm', key, iv);
-  const encrypted = Buffer.concat([cipher.update(plaintext, 'utf8'), cipher.final()]);
+  const encrypted = Buffer.concat([
+    cipher.update(plaintext, 'utf8'),
+    cipher.final(),
+  ]);
   const authTag = cipher.getAuthTag();
   return {
     encryptedKey: Buffer.concat([encrypted, authTag]).toString('base64'),
@@ -82,7 +111,9 @@ function encrypt(plaintext: string): { encryptedKey: string; iv: string } {
 
 function updateEnvFile(updates: Record<string, string>): void {
   if (!fs.existsSync(envPath)) {
-    console.warn(`.env 파일을 찾을 수 없습니다 (${envPath}) — 수동으로 설정하세요`);
+    console.warn(
+      `.env 파일을 찾을 수 없습니다 (${envPath}) — 수동으로 설정하세요`,
+    );
     return;
   }
 
@@ -110,9 +141,7 @@ async function main() {
 
   try {
     // pgvector extension 보장
-    await db.execute(
-      'CREATE EXTENSION IF NOT EXISTS vector' as unknown as Parameters<typeof db.execute>[0],
-    );
+    await db.execute('CREATE EXTENSION IF NOT EXISTS vector');
 
     // 1. 유저 생성 또는 재사용
     let [user] = await db
@@ -140,20 +169,35 @@ async function main() {
       .limit(1);
 
     if (workspace) {
-      console.log(`✅ 기존 워크스페이스 재사용: ${workspace.name} (${workspace.id})`);
+      console.log(
+        `✅ 기존 워크스페이스 재사용: ${workspace.name} (${workspace.id})`,
+      );
+      // 기본 페르소나가 없으면 추가
+      const existing = (workspace.personas as typeof DEFAULT_PERSONAS) ?? [];
+      if (existing.length === 0) {
+        [workspace] = await db
+          .update(schema.workspaces)
+          .set({ personas: DEFAULT_PERSONAS })
+          .where(eq(schema.workspaces.id, workspace.id))
+          .returning();
+        console.log(`✅ 기본 페르소나 ${DEFAULT_PERSONAS.length}개 추가`);
+      } else {
+        console.log(`  페르소나 ${existing.length}개 이미 존재 — 건너뜀`);
+      }
     } else {
+      const firstPersona = DEFAULT_PERSONAS[0];
       [workspace] = await db
         .insert(schema.workspaces)
         .values({
           ownerId: user.id,
           name: DEMO_WORKSPACE_NAME,
-          personaName: 'Comit AI',
-          systemPrompt:
-            '당신은 업로드된 문서를 기반으로 질문에 답변하는 AI 어시스턴트입니다. ' +
-            '문서에서 찾을 수 없는 내용은 솔직하게 모른다고 답변하세요.',
+          personaName: firstPersona.name,
+          systemPrompt: firstPersona.prompt,
+          personas: DEFAULT_PERSONAS,
         })
         .returning();
       console.log(`✅ 워크스페이스 생성: ${workspace.name} (${workspace.id})`);
+      console.log(`✅ 기본 페르소나 ${DEFAULT_PERSONAS.length}개 포함`);
     }
 
     // 3. AI 프로바이더 생성 또는 재사용
@@ -164,7 +208,9 @@ async function main() {
       .limit(1);
 
     if (existingProvider) {
-      console.log(`✅ 기존 AI 프로바이더 재사용: ${existingProvider.provider} / ${existingProvider.model}`);
+      console.log(
+        `✅ 기존 AI 프로바이더 재사용: ${existingProvider.provider} / ${existingProvider.model}`,
+      );
     } else {
       const { encryptedKey, iv } = encrypt(DEMO_API_KEY!);
       await db.insert(schema.aiProviders).values({

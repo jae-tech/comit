@@ -8,13 +8,12 @@ import {
   chatSessions,
   chatMessages,
   documents,
-  documentChunks,
   type ChatSession,
   type ChatMessage,
 } from '../database/schema';
 import { ProvidersService } from '../providers/providers.service';
 import { WorkspacesService } from '../workspaces/workspaces.service';
-import { ChatQueryDto, ChatStreamChunk, Citation } from '@comit/shared';
+import type { ChatQueryDto, Citation } from '@comit/shared';
 
 const TOP_K = 5;
 const DEFAULT_SYSTEM_PROMPT = `You are a helpful assistant that answers questions based on the provided document context.
@@ -32,9 +31,12 @@ export class ChatService {
   streamQuery(userId: string, dto: ChatQueryDto): Observable<MessageEvent> {
     const subject = new Subject<MessageEvent>();
 
-    this.processQuery(userId, dto, subject).catch((err) => {
+    this.processQuery(userId, dto, subject).catch((err: Error) => {
       subject.next({
-        data: JSON.stringify({ type: 'error', error: err.message } as ChatStreamChunk),
+        data: JSON.stringify({
+          type: 'error',
+          error: err.message,
+        }),
       } as MessageEvent);
       subject.complete();
     });
@@ -47,21 +49,38 @@ export class ChatService {
     dto: ChatQueryDto,
     subject: Subject<MessageEvent>,
   ): Promise<void> {
-    const workspace = await this.workspacesService.findOne(dto.workspaceId, userId);
+    const workspace = await this.workspacesService.findOne(
+      dto.workspaceId,
+      userId,
+    );
     const systemPrompt = workspace.systemPrompt || DEFAULT_SYSTEM_PROMPT;
 
-    const creds = await this.providersService.getDecryptedKey(userId);
+    // activeProviderId가 있으면 해당 provider 사용, 없으면 첫 번째 등록 provider 폴백
+    const creds = workspace.activeProviderId
+      ? await this.providersService.getDecryptedKeyById(
+          userId,
+          workspace.activeProviderId,
+        )
+      : await this.providersService.getDecryptedKey(userId);
     if (!creds) throw new NotFoundException('AI provider not configured');
 
     // ready 문서 존재 여부 확인
     const [{ count }] = await this.drizzle.db
       .select({ count: sql<number>`COUNT(*)::int` })
       .from(documents)
-      .where(and(eq(documents.workspaceId, dto.workspaceId), eq(documents.status, 'ready')));
+      .where(
+        and(
+          eq(documents.workspaceId, dto.workspaceId),
+          eq(documents.status, 'ready'),
+        ),
+      );
 
     if (count === 0) {
       subject.next({
-        data: JSON.stringify({ type: 'error', error: '문서를 먼저 업로드하고 임베딩이 완료되면 채팅이 가능합니다.' } as ChatStreamChunk),
+        data: JSON.stringify({
+          type: 'error',
+          error: '문서를 먼저 업로드하고 임베딩이 완료되면 채팅이 가능합니다.',
+        }),
       } as MessageEvent);
       subject.complete();
       return;
@@ -73,7 +92,12 @@ export class ChatService {
       const [found] = await this.drizzle.db
         .select()
         .from(chatSessions)
-        .where(and(eq(chatSessions.id, dto.sessionId), eq(chatSessions.userId, userId)))
+        .where(
+          and(
+            eq(chatSessions.id, dto.sessionId),
+            eq(chatSessions.userId, userId),
+          ),
+        )
         .limit(1);
       if (!found) throw new NotFoundException('Session not found');
       session = found;
@@ -94,8 +118,15 @@ export class ChatService {
     });
 
     // RAG: query embedding → pgvector cosine similarity
-    const citations = await this.retrieveContext(dto.workspaceId, dto.question, creds.apiKey, creds.provider);
-    const context = citations.map((c) => `[${c.filename}]\n${c.excerpt}`).join('\n\n---\n\n');
+    const citations = await this.retrieveContext(
+      dto.workspaceId,
+      dto.question,
+      creds.apiKey,
+      creds.provider,
+    );
+    const context = citations
+      .map((c) => `[${c.filename}]\n${c.excerpt}`)
+      .join('\n\n---\n\n');
     const userContent = context
       ? `Context:\n${context}\n\nQuestion: ${dto.question}`
       : dto.question;
@@ -103,13 +134,25 @@ export class ChatService {
     // LLM 스트리밍
     let fullContent = '';
     if (creds.provider === 'gemini') {
-      fullContent = await this.streamGemini(creds.apiKey, creds.model, userContent, systemPrompt, subject);
+      fullContent = await this.streamGemini(
+        creds.apiKey,
+        creds.model,
+        userContent,
+        systemPrompt,
+        subject,
+      );
     } else {
-      fullContent = await this.streamOpenAI(creds.apiKey, creds.model, userContent, systemPrompt, subject);
+      fullContent = await this.streamOpenAI(
+        creds.apiKey,
+        creds.model,
+        userContent,
+        systemPrompt,
+        subject,
+      );
     }
 
     subject.next({
-      data: JSON.stringify({ type: 'done', citations } as ChatStreamChunk),
+      data: JSON.stringify({ type: 'done', citations }),
     } as MessageEvent);
 
     await this.drizzle.db.insert(chatMessages).values({
@@ -126,7 +169,11 @@ export class ChatService {
     if (!err || typeof err !== 'object') return false;
     const e = err as Record<string, unknown>;
     if (e['status'] === 'RESOURCE_EXHAUSTED') return true;
-    if (typeof e['message'] === 'string' && /quota|rate.?limit|resource.?exhausted/i.test(e['message'])) return true;
+    if (
+      typeof e['message'] === 'string' &&
+      /quota|rate.?limit|resource.?exhausted/i.test(e['message'])
+    )
+      return true;
     if (e['status'] === 429) return true;
     return false;
   }
@@ -149,7 +196,12 @@ export class ChatService {
       stream = await geminiModel.generateContentStream(userContent);
     } catch (err) {
       if (this.isQuotaError(err)) {
-        subject.next({ data: JSON.stringify({ type: 'quota_exceeded', error: '일일 API 한도를 초과했습니다. 내일 다시 시도해 주세요.' } as ChatStreamChunk) } as MessageEvent);
+        subject.next({
+          data: JSON.stringify({
+            type: 'quota_exceeded',
+            error: '일일 API 한도를 초과했습니다. 내일 다시 시도해 주세요.',
+          }),
+        } as MessageEvent);
         subject.complete();
         return '';
       }
@@ -162,12 +214,22 @@ export class ChatService {
         const token = chunk.text();
         if (token) {
           fullContent += token;
-          subject.next({ data: JSON.stringify({ type: 'token', content: token } as ChatStreamChunk) } as MessageEvent);
+          subject.next({
+            data: JSON.stringify({
+              type: 'token',
+              content: token,
+            }),
+          } as MessageEvent);
         }
       }
     } catch (err) {
       if (this.isQuotaError(err)) {
-        subject.next({ data: JSON.stringify({ type: 'quota_exceeded', error: '일일 API 한도를 초과했습니다. 내일 다시 시도해 주세요.' } as ChatStreamChunk) } as MessageEvent);
+        subject.next({
+          data: JSON.stringify({
+            type: 'quota_exceeded',
+            error: '일일 API 한도를 초과했습니다. 내일 다시 시도해 주세요.',
+          }),
+        } as MessageEvent);
         subject.complete();
         return fullContent;
       }
@@ -185,7 +247,9 @@ export class ChatService {
   ): Promise<string> {
     const openai = new OpenAI({ apiKey });
 
-    let stream: AsyncIterable<{ choices: Array<{ delta: { content?: string | null } }> }>;
+    let stream: AsyncIterable<{
+      choices: Array<{ delta: { content?: string | null } }>;
+    }>;
     try {
       stream = await openai.chat.completions.create({
         model: model || 'gpt-4o-mini',
@@ -197,7 +261,12 @@ export class ChatService {
       });
     } catch (err) {
       if (this.isQuotaError(err)) {
-        subject.next({ data: JSON.stringify({ type: 'quota_exceeded', error: '일일 API 한도를 초과했습니다. 내일 다시 시도해 주세요.' } as ChatStreamChunk) } as MessageEvent);
+        subject.next({
+          data: JSON.stringify({
+            type: 'quota_exceeded',
+            error: '일일 API 한도를 초과했습니다. 내일 다시 시도해 주세요.',
+          }),
+        } as MessageEvent);
         subject.complete();
         return '';
       }
@@ -209,7 +278,12 @@ export class ChatService {
       const token = chunk.choices[0]?.delta?.content ?? '';
       if (token) {
         fullContent += token;
-        subject.next({ data: JSON.stringify({ type: 'token', content: token } as ChatStreamChunk) } as MessageEvent);
+        subject.next({
+          data: JSON.stringify({
+            type: 'token',
+            content: token,
+          }),
+        } as MessageEvent);
       }
     }
     return fullContent;
@@ -228,7 +302,10 @@ export class ChatService {
       const url = `https://generativelanguage.googleapis.com/v1beta/models/gemini-embedding-001:embedContent`;
       const res = await fetch(url, {
         method: 'POST',
-        headers: { 'Content-Type': 'application/json', 'x-goog-api-key': apiKey },
+        headers: {
+          'Content-Type': 'application/json',
+          'x-goog-api-key': apiKey,
+        },
         body: JSON.stringify({
           model: 'models/gemini-embedding-001',
           content: { role: 'user', parts: [{ text: question }] },
@@ -238,9 +315,11 @@ export class ChatService {
       });
       if (!res.ok) {
         const errText = await res.text();
-        throw new Error(`Gemini embedContent failed [${res.status}]: ${errText}`);
+        throw new Error(
+          `Gemini embedContent failed [${res.status}]: ${errText}`,
+        );
       }
-      const data = await res.json() as { embedding: { values: number[] } };
+      const data = (await res.json()) as { embedding: { values: number[] } };
       queryVector = data.embedding.values;
     } else {
       const openai = new OpenAI({ apiKey });
@@ -265,14 +344,16 @@ export class ChatService {
       `,
     );
 
-    return (rows as unknown as Array<{
-      id: string;
-      document_id: string;
-      filename: string;
-      content: string;
-      chunk_index: number;
-      similarity: number;
-    }>).map((row) => ({
+    return (
+      rows as unknown as Array<{
+        id: string;
+        document_id: string;
+        filename: string;
+        content: string;
+        chunk_index: number;
+        similarity: number;
+      }>
+    ).map((row) => ({
       chunkId: row.id,
       documentId: row.document_id,
       filename: row.filename,
@@ -281,19 +362,29 @@ export class ChatService {
     }));
   }
 
-  async getSessions(workspaceId: string, userId: string): Promise<ChatSession[]> {
+  async getSessions(
+    workspaceId: string,
+    userId: string,
+  ): Promise<ChatSession[]> {
     await this.workspacesService.findOne(workspaceId, userId);
     return this.drizzle.db
       .select()
       .from(chatSessions)
-      .where(and(eq(chatSessions.workspaceId, workspaceId), eq(chatSessions.userId, userId)));
+      .where(
+        and(
+          eq(chatSessions.workspaceId, workspaceId),
+          eq(chatSessions.userId, userId),
+        ),
+      );
   }
 
   async getMessages(sessionId: string, userId: string): Promise<ChatMessage[]> {
     const [session] = await this.drizzle.db
       .select()
       .from(chatSessions)
-      .where(and(eq(chatSessions.id, sessionId), eq(chatSessions.userId, userId)))
+      .where(
+        and(eq(chatSessions.id, sessionId), eq(chatSessions.userId, userId)),
+      )
       .limit(1);
 
     if (!session) throw new NotFoundException('Session not found');

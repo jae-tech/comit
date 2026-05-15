@@ -4,7 +4,12 @@ import type { Job } from 'bull';
 import { eq } from 'drizzle-orm';
 import { readFile, unlink } from 'fs/promises';
 // eslint-disable-next-line @typescript-eslint/no-require-imports
-const { PDFParse } = require('pdf-parse') as { PDFParse: new (opts: { data: Uint8Array }) => { load(): Promise<unknown>; getText(): Promise<{ text: string }> } };
+const { PDFParse } = require('pdf-parse') as {
+  PDFParse: new (opts: { data: Uint8Array }) => {
+    load(): Promise<unknown>;
+    getText(): Promise<{ text: string }>;
+  };
+};
 import OpenAI from 'openai';
 import { DrizzleService } from '../database/drizzle.service';
 import { documents, documentChunks } from '../database/schema';
@@ -52,20 +57,27 @@ export class EmbeddingProcessor {
           .set({ status: 'failed' })
           .where(eq(documents.id, documentId));
         await this.deleteFile(doc.filePath);
-        this.logger.warn(`Document ${documentId}: extracted text too short (scanned PDF?)`);
+        this.logger.warn(
+          `Document ${documentId}: extracted text too short (scanned PDF?)`,
+        );
         return;
       }
 
       const chunks = this.splitIntoChunks(text);
 
       const creds = await this.providersService.getDecryptedKey(userId);
-      if (!creds || (creds.provider !== 'openai' && creds.provider !== 'gemini')) {
+      if (
+        !creds ||
+        (creds.provider !== 'openai' && creds.provider !== 'gemini')
+      ) {
         await this.drizzle.db
           .update(documents)
           .set({ status: 'failed' })
           .where(eq(documents.id, documentId));
         await this.deleteFile(doc.filePath);
-        this.logger.warn(`Document ${documentId}: unsupported provider (need openai or gemini)`);
+        this.logger.warn(
+          `Document ${documentId}: unsupported provider (need openai or gemini)`,
+        );
         return;
       }
 
@@ -74,7 +86,11 @@ export class EmbeddingProcessor {
         .delete(documentChunks)
         .where(eq(documentChunks.documentId, documentId));
 
-      const vectors = await this.embedChunks(chunks, creds.provider, creds.apiKey);
+      const vectors = await this.embedChunks(
+        chunks,
+        creds.provider,
+        creds.apiKey,
+      );
 
       // Bulk INSERT — postgres.js unsafe()로 vector 타입 처리
       const rows = chunks.map((chunk, i) => ({
@@ -87,7 +103,12 @@ export class EmbeddingProcessor {
         await this.drizzle.sql.unsafe(
           `INSERT INTO document_chunks (id, document_id, content, chunk_index, embedding)
            VALUES (gen_random_uuid(), $1, $2, $3, $4::vector)`,
-          [documentId, row.content, row.chunkIndex, JSON.stringify(row.embedding)],
+          [
+            documentId,
+            row.content,
+            row.chunkIndex,
+            JSON.stringify(row.embedding),
+          ],
         );
       }
 
@@ -96,7 +117,9 @@ export class EmbeddingProcessor {
         .set({ status: 'ready' })
         .where(eq(documents.id, documentId));
 
-      this.logger.log(`Document ${documentId}: embedded ${chunks.length} chunks`);
+      this.logger.log(
+        `Document ${documentId}: embedded ${chunks.length} chunks`,
+      );
     } catch (err) {
       this.logger.error(`Document ${documentId} embedding failed:`, err);
       await this.drizzle.db
@@ -111,7 +134,11 @@ export class EmbeddingProcessor {
     }
   }
 
-  private async embedChunks(chunks: string[], provider: string, apiKey: string): Promise<number[][]> {
+  private async embedChunks(
+    chunks: string[],
+    provider: string,
+    apiKey: string,
+  ): Promise<number[][]> {
     if (provider === 'openai') {
       const openai = new OpenAI({ apiKey });
       const response = await openai.embeddings.create({
@@ -139,9 +166,11 @@ export class EmbeddingProcessor {
     });
     if (!res.ok) {
       const errText = await res.text();
-      throw new Error(`Gemini batchEmbedContents failed [${res.status}]: ${errText}`);
+      throw new Error(
+        `Gemini batchEmbedContents failed [${res.status}]: ${errText}`,
+      );
     }
-    const data = await res.json() as { embeddings: { values: number[] }[] };
+    const data = (await res.json()) as { embeddings: { values: number[] }[] };
     return data.embeddings.map((e) => e.values);
   }
 
@@ -153,7 +182,10 @@ export class EmbeddingProcessor {
     }
   }
 
-  private async extractText(filePath: string, filename: string): Promise<string> {
+  private async extractText(
+    filePath: string,
+    filename: string,
+  ): Promise<string> {
     const ext = filename.split('.').pop()?.toLowerCase();
     const buffer = await readFile(filePath);
     if (ext === 'pdf') {
