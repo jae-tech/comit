@@ -2,6 +2,19 @@
 
 All notable changes to this project will be documented in this file.
 
+## [0.0.3] - 2026-05-15
+
+### Added
+- RAG 채팅 세션 삭제 기능 — 사이드바 대화 목록에서 휴지통 아이콘으로 삭제 가능
+  - 2단계 확인 UI(행 내 인라인) + sonner 토스트 피드백 (성공/실패)
+  - API: `DELETE /chat/sessions/:sessionId` (204, cascade 삭제)
+  - 현재 보고 있는 세션 삭제 시 자동으로 새 대화 상태 전환
+
+### Fixed
+- RAG 채팅 "새 대화" 버튼을 눌러도 기존 세션으로 돌아오는 버그 수정
+  - 원인: `setSessionIdWithUrl(undefined)` → URL 변경 → `searchParams` 변경 → `loadSession` useEffect 재실행 → 최신 세션 자동 복원
+  - 수정: `isNewSessionRef` useRef 플래그로 자동 복원 차단
+
 ## [0.0.2] - 2026-05-15
 
 ### Changed
