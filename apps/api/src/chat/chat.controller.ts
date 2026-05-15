@@ -7,8 +7,6 @@ import {
   Query,
   UseGuards,
   Res,
-  HttpCode,
-  HttpStatus,
 } from '@nestjs/common';
 import { ApiTags, ApiBearerAuth, ApiOperation } from '@nestjs/swagger';
 import type { FastifyReply } from 'fastify';
@@ -32,16 +30,20 @@ export class ChatController {
    */
   @Post('query')
   @ApiOperation({ summary: 'RAG 검색 + 스트리밍 응답 (SSE via fetch)' })
+  // eslint-disable-next-line @typescript-eslint/require-await
   async query(
     @CurrentUser() user: { id: string },
     @Body() dto: ChatQueryDto,
     @Res() reply: FastifyReply,
   ) {
-    const origin = (reply.request as { headers: Record<string, string> }).headers['origin'] ?? '*';
+    const origin =
+      (reply.request as { headers: Record<string, string> }).headers[
+        'origin'
+      ] ?? '*';
     reply.raw.writeHead(200, {
       'Content-Type': 'text/event-stream',
       'Cache-Control': 'no-cache',
-      'Connection': 'keep-alive',
+      Connection: 'keep-alive',
       'Access-Control-Allow-Origin': origin,
       'Access-Control-Allow-Credentials': 'true',
     });
@@ -52,7 +54,7 @@ export class ChatController {
       next: (event) => {
         reply.raw.write(`data: ${event.data}\n\n`);
       },
-      error: (err) => {
+      error: (err: Error) => {
         reply.raw.write(
           `data: ${JSON.stringify({ type: 'error', error: err.message })}\n\n`,
         );

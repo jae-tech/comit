@@ -28,14 +28,20 @@ export class DocumentsService {
     private readonly workspacesService: WorkspacesService,
   ) {}
 
-  async upload(workspaceId: string, userId: string, file: UploadedFileDto): Promise<Document> {
+  async upload(
+    workspaceId: string,
+    userId: string,
+    file: UploadedFileDto,
+  ): Promise<Document> {
     await this.workspacesService.findOne(workspaceId, userId); // 403 if not owner
 
     await mkdir(this.uploadDir, { recursive: true });
 
     const safeFilename = `${Date.now()}-${file.originalname.replace(/[^a-zA-Z0-9._-]/g, '_')}`;
     const filePath = join(this.uploadDir, safeFilename);
-    this.logger.log(`Saving file: ${filePath} (bufferSize=${file.buffer.length})`);
+    this.logger.log(
+      `Saving file: ${filePath} (bufferSize=${file.buffer.length})`,
+    );
     await writeFile(filePath, file.buffer);
     const saved = await stat(filePath);
     this.logger.log(`File saved OK: ${filePath} (diskSize=${saved.size})`);
@@ -72,7 +78,11 @@ export class DocumentsService {
       .where(eq(documents.workspaceId, workspaceId));
   }
 
-  async findOne(id: string, workspaceId: string, userId: string): Promise<Document> {
+  async findOne(
+    id: string,
+    workspaceId: string,
+    userId: string,
+  ): Promise<Document> {
     await this.workspacesService.findOne(workspaceId, userId); // 403 if not owner
     const [doc] = await this.drizzle.db
       .select()
@@ -101,8 +111,6 @@ export class DocumentsService {
     }
 
     // CASCADE로 chunks도 함께 삭제됨
-    await this.drizzle.db
-      .delete(documents)
-      .where(eq(documents.id, id));
+    await this.drizzle.db.delete(documents).where(eq(documents.id, id));
   }
 }

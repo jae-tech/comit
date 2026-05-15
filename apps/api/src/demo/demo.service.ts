@@ -13,9 +13,9 @@ import {
   aiProviders,
   chatSessions,
   documents,
+  type PersonaEntry,
 } from '../database/schema';
 import { ChatService } from '../chat/chat.service';
-import { ChatStreamChunk } from '@comit/shared';
 
 @Injectable()
 export class DemoService implements OnApplicationBootstrap {
@@ -79,7 +79,9 @@ export class DemoService implements OnApplicationBootstrap {
 
   private assertEnabled(): void {
     if (!this.enabled) {
-      throw new ServiceUnavailableException('Demo is not configured on this server');
+      throw new ServiceUnavailableException(
+        'Demo is not configured on this server',
+      );
     }
   }
 
@@ -88,7 +90,10 @@ export class DemoService implements OnApplicationBootstrap {
     const subject = new Subject<MessageEvent>();
     this.processChat(question, sessionId, subject).catch((err: Error) => {
       subject.next({
-        data: JSON.stringify({ type: 'error', error: err.message } as ChatStreamChunk),
+        data: JSON.stringify({
+          type: 'error',
+          error: err.message,
+        }),
       } as MessageEvent);
       subject.complete();
     });
@@ -113,7 +118,10 @@ export class DemoService implements OnApplicationBootstrap {
       resolvedSessionId = created.id;
 
       subject.next({
-        data: JSON.stringify({ type: 'session_created', sessionId: resolvedSessionId } as ChatStreamChunk),
+        data: JSON.stringify({
+          type: 'session_created',
+          sessionId: resolvedSessionId,
+        }),
       } as MessageEvent);
     }
 
@@ -127,7 +135,10 @@ export class DemoService implements OnApplicationBootstrap {
       next: (event) => subject.next(event),
       error: (err: Error) => {
         subject.next({
-          data: JSON.stringify({ type: 'error', error: err.message } as ChatStreamChunk),
+          data: JSON.stringify({
+            type: 'error',
+            error: err.message,
+          }),
         } as MessageEvent);
         subject.complete();
       },
@@ -137,11 +148,16 @@ export class DemoService implements OnApplicationBootstrap {
 
   async getDocs(): Promise<{ id: string; filename: string; status: string }[]> {
     this.assertEnabled();
-    const hideDocs = this.config.get<string>('DEMO_HIDE_DOCS')?.toLowerCase() === 'true';
+    const hideDocs =
+      this.config.get<string>('DEMO_HIDE_DOCS')?.toLowerCase() === 'true';
     if (hideDocs) return [];
 
     return this.drizzle.db
-      .select({ id: documents.id, filename: documents.filename, status: documents.status })
+      .select({
+        id: documents.id,
+        filename: documents.filename,
+        status: documents.status,
+      })
       .from(documents)
       .where(eq(documents.workspaceId, this.workspaceId!));
   }
@@ -151,13 +167,18 @@ export class DemoService implements OnApplicationBootstrap {
     systemPrompt: string | null;
     model: string;
     documentCount: number;
+    personas: PersonaEntry[];
   }> {
     this.assertEnabled();
     const workspaceId = this.workspaceId!;
     const userId = this.userId!;
 
     const [ws] = await this.drizzle.db
-      .select({ personaName: workspaces.personaName, systemPrompt: workspaces.systemPrompt })
+      .select({
+        personaName: workspaces.personaName,
+        systemPrompt: workspaces.systemPrompt,
+        personas: workspaces.personas,
+      })
       .from(workspaces)
       .where(eq(workspaces.id, workspaceId))
       .limit(1);
@@ -177,6 +198,7 @@ export class DemoService implements OnApplicationBootstrap {
       systemPrompt: ws?.systemPrompt ?? null,
       model: providers[0]?.model ?? 'unknown',
       documentCount: documentCount ?? 0,
+      personas: ws?.personas ?? [],
     };
   }
 
@@ -187,7 +209,8 @@ export class DemoService implements OnApplicationBootstrap {
     this.assertEnabled();
     const updates: Record<string, unknown> = {};
     if (dto.personaName !== undefined) updates['personaName'] = dto.personaName;
-    if (dto.systemPrompt !== undefined) updates['systemPrompt'] = dto.systemPrompt;
+    if (dto.systemPrompt !== undefined)
+      updates['systemPrompt'] = dto.systemPrompt;
     if (Object.keys(updates).length === 0) return;
 
     await this.drizzle.db
@@ -196,4 +219,71 @@ export class DemoService implements OnApplicationBootstrap {
       .where(eq(workspaces.id, this.workspaceId!));
   }
 
+  async addPersona(dto: {
+    name: string;
+    prompt: string;
+  }): Promise<PersonaEntry> {
+    this.assertEnabled();
+    const [ws] = await this.drizzle.db
+      .select({ personas: workspaces.personas })
+      .from(workspaces)
+      .where(eq(workspaces.id, this.workspaceId!))
+      .limit(1);
+
+    const existing: PersonaEntry[] = ws?.personas ?? [];
+    const newEntry: PersonaEntry = {
+      id: crypto.randomUUID(),
+      name: dto.name,
+      prompt: dto.prompt,
+    };
+    const updated = [...existing, newEntry];
+
+    await this.drizzle.db
+      .update(workspaces)
+      .set({ personas: updated })
+      .where(eq(workspaces.id, this.workspaceId!));
+
+    return newEntry;
+  }
+
+  async activatePersona(personaId: string): Promise<void> {
+    this.assertEnabled();
+    const [ws] = await this.drizzle.db
+      .select({ personas: workspaces.personas })
+      .from(workspaces)
+      .where(eq(workspaces.id, this.workspaceId!))
+      .limit(1);
+
+    const personas: PersonaEntry[] = ws?.personas ?? [];
+    const target = personas.find((p) => p.id === personaId);
+    if (!target) {
+      throw new Error(`Persona ${personaId} not found`);
+    }
+
+    await this.drizzle.db
+      .update(workspaces)
+      .set({ personaName: target.name, systemPrompt: target.prompt })
+      .where(eq(workspaces.id, this.workspaceId!));
+  }
+
+  async removePersona(personaId: string): Promise<void> {
+    this.assertEnabled();
+    if (personaId.startsWith('00000000-0000-0000-0000-')) {
+      throw new Error('기본 페르소나는 삭제할 수 없습니다');
+    }
+
+    const [ws] = await this.drizzle.db
+      .select({ personas: workspaces.personas })
+      .from(workspaces)
+      .where(eq(workspaces.id, this.workspaceId!))
+      .limit(1);
+
+    const existing: PersonaEntry[] = ws?.personas ?? [];
+    const updated = existing.filter((p) => p.id !== personaId);
+
+    await this.drizzle.db
+      .update(workspaces)
+      .set({ personas: updated })
+      .where(eq(workspaces.id, this.workspaceId!));
+  }
 }

@@ -13,3 +13,13 @@ export interface ProviderResponse {
   createdAt: string;
   // apiKey는 절대 응답에 포함하지 않음
 }
+
+export interface ModelInfo {
+  id: string;
+  name: string;
+}
+
+export interface ModelsResponse {
+  provider: AiProvider;
+  models: ModelInfo[];
+}

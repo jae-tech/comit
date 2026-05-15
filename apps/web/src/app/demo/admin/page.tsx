@@ -17,6 +17,9 @@ import {
   Check,
   X as XIcon,
   Lock,
+  Plus,
+  Trash2,
+  UserCircle2,
 } from 'lucide-react';
 import { ComitLogo } from '@/components/comit-logo';
 import Link from 'next/link';
@@ -27,25 +30,25 @@ interface Doc {
   status: string;
 }
 
+interface PersonaEntry {
+  id: string;
+  name: string;
+  prompt: string;
+}
+
 interface WorkspaceInfo {
   personaName: string | null;
   systemPrompt: string | null;
   model: string;
   documentCount: number;
+  personas: PersonaEntry[];
 }
-
-const ADMIN_TOKEN_KEY = 'comit-demo-admin-token';
 
 export default function DemoAdminPage() {
   const [docs, setDocs] = useState<Doc[]>([]);
   const [info, setInfo] = useState<WorkspaceInfo | null>(null);
   const [loading, setLoading] = useState(true);
   const [unavailable, setUnavailable] = useState(false);
-
-  // 관리자 토큰
-  const [adminToken, setAdminToken] = useState('');
-  const [tokenInput, setTokenInput] = useState('');
-  const [tokenError, setTokenError] = useState('');
 
   // 편집 상태
   const [editingPersona, setEditingPersona] = useState(false);
@@ -58,12 +61,14 @@ export default function DemoAdminPage() {
   const personaInputRef = useRef<HTMLInputElement>(null);
   const promptTextareaRef = useRef<HTMLTextAreaElement>(null);
 
-  useEffect(() => {
-    const stored = typeof window !== 'undefined'
-      ? localStorage.getItem(ADMIN_TOKEN_KEY) ?? ''
-      : '';
-    setAdminToken(stored);
-  }, []);
+  // 페르소나 목록 상태
+  const [activatingPersonaId, setActivatingPersonaId] = useState<string | null>(null);
+  const [removingPersonaId, setRemovingPersonaId] = useState<string | null>(null);
+  const [showAddPersona, setShowAddPersona] = useState(false);
+  const [newPersonaName, setNewPersonaName] = useState('');
+  const [newPersonaPrompt, setNewPersonaPrompt] = useState('');
+  const [addingPersona, setAddingPersona] = useState(false);
+  const [personaError, setPersonaError] = useState('');
 
   useEffect(() => {
     Promise.all([
@@ -93,15 +98,6 @@ export default function DemoAdminPage() {
     if (editingPrompt) promptTextareaRef.current?.focus();
   }, [editingPrompt]);
 
-  function handleTokenSubmit(e: React.FormEvent) {
-    e.preventDefault();
-    if (!tokenInput.trim()) return;
-    localStorage.setItem(ADMIN_TOKEN_KEY, tokenInput.trim());
-    setAdminToken(tokenInput.trim());
-    setTokenInput('');
-    setTokenError('');
-  }
-
   function startEditPersona() {
     setPersonaDraft(info?.personaName ?? '');
     setEditingPersona(true);
@@ -115,18 +111,11 @@ export default function DemoAdminPage() {
   }
 
   async function savePersona() {
-    if (!adminToken) return;
     setSaving('persona');
     setSaveError('');
     try {
-      const res = await demoAdminApi.updateSettings(adminToken, {
-        personaName: personaDraft,
-      });
-      if (res.status === 403 || res.status === 401) {
-        setTokenError('토큰이 올바르지 않습니다.');
-        setSaving(null);
-        return;
-      }
+      const res = await demoAdminApi.updateSettings({ personaName: personaDraft });
+      if (!res.ok) { setSaveError('저장 실패 — API 서버를 확인하세요.'); return; }
       setInfo((prev) => prev ? { ...prev, personaName: personaDraft || null } : prev);
       setEditingPersona(false);
     } catch {
@@ -137,24 +126,71 @@ export default function DemoAdminPage() {
   }
 
   async function savePrompt() {
-    if (!adminToken) return;
     setSaving('prompt');
     setSaveError('');
     try {
-      const res = await demoAdminApi.updateSettings(adminToken, {
-        systemPrompt: promptDraft,
-      });
-      if (res.status === 403 || res.status === 401) {
-        setTokenError('토큰이 올바르지 않습니다.');
-        setSaving(null);
-        return;
-      }
+      const res = await demoAdminApi.updateSettings({ systemPrompt: promptDraft });
+      if (!res.ok) { setSaveError('저장 실패 — API 서버를 확인하세요.'); return; }
       setInfo((prev) => prev ? { ...prev, systemPrompt: promptDraft || null } : prev);
       setEditingPrompt(false);
     } catch {
       setSaveError('저장 실패 — API 서버를 확인하세요.');
     } finally {
       setSaving(null);
+    }
+  }
+
+  async function handleActivatePersona(personaId: string) {
+    setActivatingPersonaId(personaId);
+    setPersonaError('');
+    try {
+      const res = await demoAdminApi.activatePersona(personaId);
+      if (!res.ok) { setPersonaError('활성화 실패 — 다시 시도해주세요.'); return; }
+      const target = info?.personas.find((p) => p.id === personaId);
+      if (target) {
+        setInfo((prev) => prev ? { ...prev, personaName: target.name, systemPrompt: target.prompt } : prev);
+      }
+    } catch {
+      setPersonaError('활성화 실패 — API 서버를 확인하세요.');
+    } finally {
+      setActivatingPersonaId(null);
+    }
+  }
+
+  async function handleRemovePersona(personaId: string) {
+    setRemovingPersonaId(personaId);
+    setPersonaError('');
+    try {
+      const res = await demoAdminApi.removePersona(personaId);
+      if (!res.ok) { setPersonaError('삭제 실패 — 다시 시도해주세요.'); return; }
+      setInfo((prev) => prev ? { ...prev, personas: prev.personas.filter((p) => p.id !== personaId) } : prev);
+    } catch {
+      setPersonaError('삭제 실패 — API 서버를 확인하세요.');
+    } finally {
+      setRemovingPersonaId(null);
+    }
+  }
+
+  async function handleAddPersona(e: React.FormEvent) {
+    e.preventDefault();
+    if (!newPersonaName.trim() || !newPersonaPrompt.trim()) return;
+    setAddingPersona(true);
+    setPersonaError('');
+    try {
+      const res = await demoAdminApi.addPersona({
+        name: newPersonaName.trim(),
+        prompt: newPersonaPrompt.trim(),
+      });
+      if (!res.ok) { setPersonaError('추가 실패 — 다시 시도해주세요.'); return; }
+      const created = await res.json() as PersonaEntry;
+      setInfo((prev) => prev ? { ...prev, personas: [...prev.personas, created] } : prev);
+      setNewPersonaName('');
+      setNewPersonaPrompt('');
+      setShowAddPersona(false);
+    } catch {
+      setPersonaError('추가 실패 — API 서버를 확인하세요.');
+    } finally {
+      setAddingPersona(false);
     }
   }
 
@@ -173,8 +209,6 @@ export default function DemoAdminPage() {
       </div>
     );
   }
-
-  const isAdmin = !!adminToken;
 
   return (
     <div className="min-h-screen bg-[#faf9f7]">
@@ -211,54 +245,6 @@ export default function DemoAdminPage() {
             이 데모는 실제 Comit 워크스페이스 위에서 실행됩니다. 아래 설정이 지금 데모 챗봇에 적용되어 있습니다.
           </p>
         </div>
-
-        {/* 관리자 토큰 */}
-        <section className="rounded-xl border border-stone-200 bg-white overflow-hidden">
-          <div className="px-4 py-3 border-b border-stone-100 flex items-center justify-between">
-            <div className="flex items-center gap-2">
-              <Lock className="h-3.5 w-3.5 text-stone-400" />
-              <h2 className="text-xs font-semibold text-stone-600 uppercase tracking-wide">관리자 인증</h2>
-            </div>
-            {isAdmin && (
-              <span className="flex items-center gap-1 text-[10px] text-green-600">
-                <CheckCircle className="h-3 w-3" /> 인증됨
-              </span>
-            )}
-          </div>
-          {isAdmin ? (
-            <div className="px-4 py-3 flex items-center justify-between">
-              <span className="text-xs text-stone-500">설정을 편집할 수 있습니다.</span>
-              <button
-                onClick={() => {
-                  localStorage.removeItem(ADMIN_TOKEN_KEY);
-                  setAdminToken('');
-                }}
-                className="text-xs text-stone-400 hover:text-red-500 transition-colors"
-              >
-                토큰 제거
-              </button>
-            </div>
-          ) : (
-            <form onSubmit={handleTokenSubmit} className="px-4 py-3 flex gap-2">
-              <input
-                type="password"
-                value={tokenInput}
-                onChange={(e) => setTokenInput(e.target.value)}
-                placeholder="DEMO_ADMIN_TOKEN 입력"
-                className="flex-1 text-xs rounded-lg border border-stone-200 px-3 py-2 outline-none focus:border-stone-400 bg-stone-50"
-              />
-              <button
-                type="submit"
-                className="rounded-lg bg-stone-900 px-3 py-2 text-xs font-medium text-white hover:bg-stone-700 transition-colors"
-              >
-                확인
-              </button>
-            </form>
-          )}
-          {tokenError && (
-            <p className="px-4 pb-3 text-xs text-red-500">{tokenError}</p>
-          )}
-        </section>
 
         {/* 문서 목록 */}
         <section className="rounded-xl border border-stone-200 bg-white overflow-hidden">
@@ -299,6 +285,137 @@ export default function DemoAdminPage() {
                 </li>
               ))}
             </ul>
+          )}
+        </section>
+
+        {/* 페르소나 프리셋 */}
+        <section className="rounded-xl border border-stone-200 bg-white overflow-hidden">
+          <div className="px-4 py-3 border-b border-stone-100 flex items-center justify-between">
+            <div className="flex items-center gap-2">
+              <UserCircle2 className="h-3.5 w-3.5 text-stone-400" />
+              <h2 className="text-xs font-semibold text-stone-600 uppercase tracking-wide">
+                페르소나 프리셋 {info && info.personas.length > 0 && `(${info.personas.length}개)`}
+              </h2>
+            </div>
+            <button
+              onClick={() => { setShowAddPersona((v) => !v); setPersonaError(''); }}
+              className="flex items-center gap-1 text-xs text-stone-500 hover:text-stone-800 transition-colors"
+            >
+              <Plus className="h-3 w-3" />
+              추가
+            </button>
+          </div>
+
+          {/* 페르소나 추가 폼 */}
+          {showAddPersona && (
+            <form onSubmit={handleAddPersona} className="px-4 py-3 border-b border-stone-100 flex flex-col gap-2 bg-stone-50">
+              <span className="text-xs font-medium text-stone-600">새 페르소나</span>
+              <input
+                type="text"
+                value={newPersonaName}
+                onChange={(e) => setNewPersonaName(e.target.value)}
+                maxLength={100}
+                placeholder="이름 (예: 고객지원봇)"
+                className="text-xs rounded-lg border border-stone-200 px-3 py-1.5 outline-none focus:border-stone-400 bg-white"
+                required
+              />
+              <textarea
+                value={newPersonaPrompt}
+                onChange={(e) => setNewPersonaPrompt(e.target.value)}
+                maxLength={4000}
+                rows={4}
+                placeholder="시스템 프롬프트 (예: 당신은 친절한 고객지원 담당자입니다.)"
+                className="text-xs rounded-lg border border-stone-200 px-3 py-2 outline-none focus:border-stone-400 bg-white resize-none leading-relaxed"
+                required
+              />
+              <div className="flex items-center justify-between">
+                <span className="text-[10px] text-stone-400">{newPersonaPrompt.length} / 4000</span>
+                <div className="flex gap-2">
+                  <button
+                    type="button"
+                    onClick={() => { setShowAddPersona(false); setNewPersonaName(''); setNewPersonaPrompt(''); }}
+                    className="rounded-lg border border-stone-200 px-3 py-1.5 text-xs text-stone-500 hover:text-stone-800 transition-colors"
+                  >
+                    취소
+                  </button>
+                  <button
+                    type="submit"
+                    disabled={addingPersona || !newPersonaName.trim() || !newPersonaPrompt.trim()}
+                    className="rounded-lg bg-stone-900 px-3 py-1.5 text-xs text-white hover:bg-stone-700 transition-colors disabled:opacity-40 flex items-center gap-1.5"
+                  >
+                    {addingPersona && <Loader2 className="h-3 w-3 animate-spin" />}
+                    추가
+                  </button>
+                </div>
+              </div>
+            </form>
+          )}
+
+          {!info || info.personas.length === 0 ? (
+            <p className="px-4 py-6 text-xs text-stone-400 text-center">
+              + 추가 버튼으로 페르소나 프리셋을 만들어보세요.
+            </p>
+          ) : (
+            <ul className="divide-y divide-stone-50">
+              {info.personas.map((persona) => {
+                const isActive = info.personaName === persona.name && info.systemPrompt === persona.prompt;
+                const isDefault = persona.id.startsWith('00000000-0000-0000-0000-');
+                return (
+                  <li key={persona.id} className={`px-4 py-3 flex flex-col gap-1.5 ${isActive ? 'bg-blue-50/40' : ''}`}>
+                    <div className="flex items-center justify-between">
+                      <div className="flex items-center gap-2">
+                        {isActive && (
+                          <span className="flex items-center gap-0.5 text-[10px] text-blue-600 font-medium shrink-0">
+                            <CheckCircle className="h-3 w-3" /> 활성
+                          </span>
+                        )}
+                        <span className="text-xs font-medium text-stone-800">{persona.name}</span>
+                        {isDefault && (
+                          <span className="text-[10px] text-stone-300">기본</span>
+                        )}
+                      </div>
+                      <div className="flex items-center gap-1.5 shrink-0">
+                        {!isActive && (
+                          <button
+                            onClick={() => handleActivatePersona(persona.id)}
+                            disabled={activatingPersonaId === persona.id}
+                            className="rounded-lg border border-stone-200 px-2 py-1 text-[10px] text-stone-600 hover:bg-stone-900 hover:text-white hover:border-stone-900 transition-colors disabled:opacity-40 flex items-center gap-1"
+                          >
+                            {activatingPersonaId === persona.id ? (
+                              <Loader2 className="h-2.5 w-2.5 animate-spin" />
+                            ) : (
+                              <Check className="h-2.5 w-2.5" />
+                            )}
+                            적용
+                          </button>
+                        )}
+                        {!isDefault && (
+                          <button
+                            onClick={() => handleRemovePersona(persona.id)}
+                            disabled={removingPersonaId === persona.id}
+                            className="rounded-lg border border-stone-100 p-1 text-stone-300 hover:text-red-500 hover:border-red-200 transition-colors disabled:opacity-40"
+                            title="삭제"
+                          >
+                            {removingPersonaId === persona.id ? (
+                              <Loader2 className="h-3 w-3 animate-spin" />
+                            ) : (
+                              <Trash2 className="h-3 w-3" />
+                            )}
+                          </button>
+                        )}
+                      </div>
+                    </div>
+                    <p className="text-[11px] text-stone-500 leading-relaxed line-clamp-2 bg-stone-50 rounded px-2 py-1 border border-stone-100">
+                      {persona.prompt}
+                    </p>
+                  </li>
+                );
+              })}
+            </ul>
+          )}
+
+          {personaError && (
+            <p className="px-4 pb-3 text-xs text-red-500">{personaError}</p>
           )}
         </section>
 
@@ -366,14 +483,12 @@ export default function DemoAdminPage() {
                     <span className="text-xs text-stone-700">
                       {info?.personaName ?? '기본값'}
                     </span>
-                    {isAdmin && (
-                      <button
-                        onClick={startEditPersona}
-                        className="text-stone-300 hover:text-stone-600 transition-colors"
-                      >
-                        <Pencil className="h-3 w-3" />
-                      </button>
-                    )}
+                    <button
+                      onClick={startEditPersona}
+                      className="text-stone-300 hover:text-stone-600 transition-colors"
+                    >
+                      <Pencil className="h-3 w-3" />
+                    </button>
                   </div>
                 </div>
               )}
@@ -418,14 +533,12 @@ export default function DemoAdminPage() {
                 <div className="flex flex-col gap-1.5">
                   <div className="flex items-center justify-between">
                     <span className="text-xs text-stone-500">시스템 프롬프트</span>
-                    {isAdmin && (
-                      <button
-                        onClick={startEditPrompt}
-                        className="text-stone-300 hover:text-stone-600 transition-colors"
-                      >
-                        <Pencil className="h-3 w-3" />
-                      </button>
-                    )}
+                    <button
+                      onClick={startEditPrompt}
+                      className="text-stone-300 hover:text-stone-600 transition-colors"
+                    >
+                      <Pencil className="h-3 w-3" />
+                    </button>
                   </div>
                   {info?.systemPrompt ? (
                     <p className="text-xs text-stone-600 leading-relaxed bg-stone-50 rounded-lg px-3 py-2 border border-stone-100 whitespace-pre-wrap">

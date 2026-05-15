@@ -6,11 +6,17 @@ import {
   Delete,
   Body,
   Param,
+  Query,
   UseGuards,
   HttpCode,
   HttpStatus,
 } from '@nestjs/common';
-import { ApiTags, ApiBearerAuth, ApiOperation } from '@nestjs/swagger';
+import {
+  ApiTags,
+  ApiBearerAuth,
+  ApiOperation,
+  ApiQuery,
+} from '@nestjs/swagger';
 import { JwtAuthGuard } from '../common/guards/jwt-auth.guard';
 import { CurrentUser } from '../common/decorators/current-user.decorator';
 import { ProvidersService } from './providers.service';
@@ -25,10 +31,7 @@ export class ProvidersController {
 
   @Post()
   @ApiOperation({ summary: 'API Key 등록 (등록 시 validation 수행)' })
-  create(
-    @CurrentUser() user: { id: string },
-    @Body() dto: CreateProviderDto,
-  ) {
+  create(@CurrentUser() user: { id: string }, @Body() dto: CreateProviderDto) {
     return this.providersService.create(user.id, dto);
   }
 
@@ -36,6 +39,16 @@ export class ProvidersController {
   @ApiOperation({ summary: '등록된 provider 목록' })
   findAll(@CurrentUser() user: { id: string }) {
     return this.providersService.findAll(user.id);
+  }
+
+  @Get('models')
+  @ApiOperation({ summary: '등록된 API 키로 사용 가능한 LLM 모델 목록 조회' })
+  @ApiQuery({ name: 'provider', enum: ['openai', 'anthropic', 'gemini'] })
+  getModels(
+    @CurrentUser() user: { id: string },
+    @Query('provider') provider: string,
+  ) {
+    return this.providersService.getModels(user.id, provider);
   }
 
   @Patch(':id')

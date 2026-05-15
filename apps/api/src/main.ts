@@ -1,7 +1,11 @@
 import { NestFactory } from '@nestjs/core';
 import { ValidationPipe } from '@nestjs/common';
-import { FastifyAdapter, NestFastifyApplication } from '@nestjs/platform-fastify';
+import {
+  FastifyAdapter,
+  NestFastifyApplication,
+} from '@nestjs/platform-fastify';
 import { DocumentBuilder, SwaggerModule } from '@nestjs/swagger';
+import fastifyMultipart from '@fastify/multipart';
 import { AppModule } from './app.module';
 
 async function bootstrap() {
@@ -11,8 +15,7 @@ async function bootstrap() {
   );
 
   // @fastify/multipart — 파일 업로드
-  // eslint-disable-next-line @typescript-eslint/no-require-imports
-  await app.register(require('@fastify/multipart') as Parameters<typeof app.register>[0], {
+  await app.register(fastifyMultipart, {
     limits: {
       fileSize: 50 * 1024 * 1024, // 50MB
     },
@@ -20,7 +23,9 @@ async function bootstrap() {
 
   const allowedOrigins = (
     process.env.FRONTEND_URL || 'http://localhost:3000,http://localhost:3001'
-  ).split(',').map((o) => o.trim());
+  )
+    .split(',')
+    .map((o) => o.trim());
 
   app.enableCors({
     origin: allowedOrigins,
@@ -51,4 +56,4 @@ async function bootstrap() {
   console.log(`Swagger docs: http://localhost:${port}/docs`);
 }
 
-bootstrap();
+void bootstrap();

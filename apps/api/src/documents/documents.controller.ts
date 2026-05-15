@@ -12,7 +12,13 @@ import {
   Req,
   Res,
 } from '@nestjs/common';
-import { ApiTags, ApiBearerAuth, ApiOperation, ApiConsumes, ApiBody } from '@nestjs/swagger';
+import {
+  ApiTags,
+  ApiBearerAuth,
+  ApiOperation,
+  ApiConsumes,
+  ApiBody,
+} from '@nestjs/swagger';
 import '@fastify/multipart';
 import type { FastifyRequest, FastifyReply } from 'fastify';
 import { JwtAuthGuard } from '../common/guards/jwt-auth.guard';
@@ -48,8 +54,13 @@ export class DocumentsController {
 
     const allowedMimes = ['application/pdf', 'text/plain', 'text/markdown'];
     const allowedExts = /\.(pdf|txt|md)$/i;
-    if (!allowedMimes.includes(data.mimetype) || !allowedExts.test(data.filename)) {
-      throw new BadRequestException('Unsupported file type. Allowed: PDF, TXT, MD');
+    if (
+      !allowedMimes.includes(data.mimetype) ||
+      !allowedExts.test(data.filename)
+    ) {
+      throw new BadRequestException(
+        'Unsupported file type. Allowed: PDF, TXT, MD',
+      );
     }
 
     const buffer = await data.toBuffer();
@@ -88,18 +99,23 @@ export class DocumentsController {
     @Query('workspaceId') workspaceId: string,
     @Res() reply: FastifyReply,
   ) {
-    const origin = (reply.request as { headers: Record<string, string> }).headers['origin'] ?? '*';
+    const origin =
+      (reply.request as { headers: Record<string, string> }).headers[
+        'origin'
+      ] ?? '*';
     reply.raw.writeHead(200, {
       'Content-Type': 'text/event-stream',
       'Cache-Control': 'no-cache',
-      'Connection': 'keep-alive',
+      Connection: 'keep-alive',
       'Access-Control-Allow-Origin': origin,
       'Access-Control-Allow-Credentials': 'true',
     });
 
     // 초기 상태 즉시 전송
     const doc = await this.documentsService.findOne(id, workspaceId, user.id);
-    reply.raw.write(`data: ${JSON.stringify({ status: doc.status, progress: this.statusToProgress(doc.status) })}\n\n`);
+    reply.raw.write(
+      `data: ${JSON.stringify({ status: doc.status, progress: this.statusToProgress(doc.status) })}\n\n`,
+    );
 
     if (doc.status === 'ready' || doc.status === 'failed') {
       reply.raw.end();
@@ -110,13 +126,24 @@ export class DocumentsController {
     const MAX_POLLS = 300;
     let polls = 0;
 
+    // eslint-disable-next-line @typescript-eslint/no-misused-promises
     const interval = setInterval(async () => {
       polls++;
       try {
-        const current = await this.documentsService.findOne(id, workspaceId, user.id);
-        reply.raw.write(`data: ${JSON.stringify({ status: current.status, progress: this.statusToProgress(current.status) })}\n\n`);
+        const current = await this.documentsService.findOne(
+          id,
+          workspaceId,
+          user.id,
+        );
+        reply.raw.write(
+          `data: ${JSON.stringify({ status: current.status, progress: this.statusToProgress(current.status) })}\n\n`,
+        );
 
-        if (current.status === 'ready' || current.status === 'failed' || polls >= MAX_POLLS) {
+        if (
+          current.status === 'ready' ||
+          current.status === 'failed' ||
+          polls >= MAX_POLLS
+        ) {
           clearInterval(interval);
           reply.raw.end();
         }

@@ -8,7 +8,10 @@ export class UpdateWorkspaceDto {
   @MaxLength(100)
   personaName?: string;
 
-  @ApiPropertyOptional({ description: '시스템 프롬프트 (null이면 기본값 사용)', maxLength: 2000 })
+  @ApiPropertyOptional({
+    description: '시스템 프롬프트 (null이면 기본값 사용)',
+    maxLength: 2000,
+  })
   @IsOptional()
   @IsString()
   @MaxLength(2000)

@@ -1,6 +1,13 @@
-import { Injectable, OnModuleInit, OnModuleDestroy, Logger } from '@nestjs/common';
+import {
+  Injectable,
+  OnModuleInit,
+  OnModuleDestroy,
+  Logger,
+} from '@nestjs/common';
 import { ConfigService } from '@nestjs/config';
 import { drizzle, PostgresJsDatabase } from 'drizzle-orm/postgres-js';
+import { migrate } from 'drizzle-orm/postgres-js/migrator';
+import { resolve } from 'path';
 import postgres from 'postgres';
 import * as schema from './schema';
 
@@ -24,10 +31,14 @@ export class DrizzleService implements OnModuleInit, OnModuleDestroy {
     this.db = drizzle(this.client, { schema, logger: false });
 
     // pgvector extension 보장
-    await this.db.execute(
-      'CREATE EXTENSION IF NOT EXISTS vector' as unknown as Parameters<DrizzleDB['execute']>[0],
-    );
-    this.logger.log('Drizzle connected, pgvector ready');
+    await this.db.execute('CREATE EXTENSION IF NOT EXISTS vector');
+
+    // 미적용 마이그레이션 자동 실행
+    // dev: src/database → ../../drizzle = apps/api/drizzle
+    // prod: dist/database → ../../drizzle = apps/api/drizzle
+    const migrationsFolder = resolve(__dirname, '../../drizzle');
+    await migrate(this.db, { migrationsFolder });
+    this.logger.log('Drizzle connected, pgvector ready, migrations applied');
   }
 
   async onModuleDestroy() {

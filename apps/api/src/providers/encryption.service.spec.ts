@@ -53,9 +53,7 @@ describe('EncryptionService', () => {
       const { encryptedKey, iv } = service.encrypt('secret');
       const tampered = Buffer.from(encryptedKey, 'base64');
       tampered[0] ^= 0xff; // 첫 바이트 반전
-      expect(() =>
-        service.decrypt(tampered.toString('base64'), iv),
-      ).toThrow();
+      expect(() => service.decrypt(tampered.toString('base64'), iv)).toThrow();
     });
 
     it('IV를 다른 것으로 바꾸면 decrypt()가 throw해야 한다', () => {

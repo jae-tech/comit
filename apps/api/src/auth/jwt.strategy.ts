@@ -11,6 +11,7 @@ export class JwtStrategy extends PassportStrategy(Strategy) {
       // EventSource(SSE)는 커스텀 헤더 불가 → query param ?token= 도 허용
       jwtFromRequest: ExtractJwt.fromExtractors([
         ExtractJwt.fromAuthHeaderAsBearerToken(),
+        // eslint-disable-next-line @typescript-eslint/no-unsafe-member-access
         (req) => (req?.query as Record<string, string>)?.token ?? null,
       ]),
       ignoreExpiration: false,

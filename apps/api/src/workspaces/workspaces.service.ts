@@ -1,8 +1,19 @@
-import { Injectable, ForbiddenException, NotFoundException } from '@nestjs/common';
-import { eq } from 'drizzle-orm';
+import {
+  Injectable,
+  ForbiddenException,
+  NotFoundException,
+} from '@nestjs/common';
+import { eq, and } from 'drizzle-orm';
 import { unlink } from 'fs/promises';
 import { DrizzleService } from '../database/drizzle.service';
-import { workspaces, documents, chatSessions, chatMessages, type Workspace } from '../database/schema';
+import {
+  workspaces,
+  documents,
+  chatSessions,
+  chatMessages,
+  aiProviders,
+  type Workspace,
+} from '../database/schema';
 import { UpdateWorkspaceDto } from './dto/update-workspace.dto';
 
 @Injectable()
@@ -36,16 +47,49 @@ export class WorkspacesService {
     return ws;
   }
 
-  async update(id: string, userId: string, dto: UpdateWorkspaceDto): Promise<Workspace> {
+  async update(
+    id: string,
+    userId: string,
+    dto: UpdateWorkspaceDto,
+  ): Promise<Workspace> {
     await this.findOne(id, userId); // 403/404
 
     const patch: Partial<Workspace> = {};
-    if (dto.personaName !== undefined) patch.personaName = dto.personaName || null;
-    if (dto.systemPrompt !== undefined) patch.systemPrompt = dto.systemPrompt || null;
+    if (dto.personaName !== undefined)
+      patch.personaName = dto.personaName || null;
+    if (dto.systemPrompt !== undefined)
+      patch.systemPrompt = dto.systemPrompt || null;
 
     const [updated] = await this.drizzle.db
       .update(workspaces)
       .set(patch)
+      .where(eq(workspaces.id, id))
+      .returning();
+
+    return updated;
+  }
+
+  async setActiveProvider(
+    id: string,
+    userId: string,
+    providerId: string,
+  ): Promise<Workspace> {
+    await this.findOne(id, userId); // 403/404
+
+    // 해당 provider가 이 사용자 소유인지 검증
+    const [provider] = await this.drizzle.db
+      .select()
+      .from(aiProviders)
+      .where(
+        and(eq(aiProviders.id, providerId), eq(aiProviders.userId, userId)),
+      )
+      .limit(1);
+
+    if (!provider) throw new NotFoundException('Provider not found');
+
+    const [updated] = await this.drizzle.db
+      .update(workspaces)
+      .set({ activeProviderId: providerId })
       .where(eq(workspaces.id, id))
       .returning();
 
@@ -71,10 +115,16 @@ export class WorkspacesService {
       .where(eq(chatSessions.workspaceId, id));
 
     for (const { id: sessionId } of sessionIds) {
-      await this.drizzle.db.delete(chatMessages).where(eq(chatMessages.sessionId, sessionId));
+      await this.drizzle.db
+        .delete(chatMessages)
+        .where(eq(chatMessages.sessionId, sessionId));
     }
-    await this.drizzle.db.delete(chatSessions).where(eq(chatSessions.workspaceId, id));
-    await this.drizzle.db.delete(documents).where(eq(documents.workspaceId, id));
+    await this.drizzle.db
+      .delete(chatSessions)
+      .where(eq(chatSessions.workspaceId, id));
+    await this.drizzle.db
+      .delete(documents)
+      .where(eq(documents.workspaceId, id));
     await this.drizzle.db.delete(workspaces).where(eq(workspaces.id, id));
   }
 }
