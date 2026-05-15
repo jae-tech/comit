@@ -32,10 +32,11 @@ function ProviderPage() {
     providerApi.list().then((r) => setProviders(r.data));
   }, []);
 
-  // 등록된 provider가 있을 때 모델 목록 로드
+  // 모델 목록 로드 — registered 여부는 호출자가 보장하거나, API 실패 시 빈 배열 처리
   const loadModels = useCallback(
-    async (pType: string) => {
-      const registered = providers.find((p) => p.provider === pType);
+    async (pType: string, knownProviders?: Provider[]) => {
+      const list = knownProviders ?? providers;
+      const registered = list.find((p) => p.provider === pType);
       if (!registered) {
         setModels([]);
         setModel('');
@@ -80,11 +81,12 @@ function ProviderPage() {
     try {
       const res = await providerApi.create(providerType, apiKey, model);
       const newProvider = res.data as Provider;
-      setProviders((prev) => [...prev, newProvider]);
+      const updated = [...providers, newProvider];
+      setProviders(updated);
       setApiKey('');
       setSuccess('API Key가 등록되었습니다.');
-      // 등록 후 모델 목록 새로 로드
-      void loadModels(providerType);
+      // stale closure 우회: 방금 만든 목록을 직접 전달
+      void loadModels(providerType, updated);
     } catch (err: unknown) {
       const status = (err as { response?: { status?: number } })?.response?.status;
       setError(

@@ -9,6 +9,7 @@ import { AppHeader, CONTENT_WIDTH } from '@/components/app-header';
 import { Button } from '@/components/ui/button';
 import { Input } from '@/components/ui/input';
 import { FileText, Plus, Settings, LogOut, ChevronRight, MessageSquare, Trash2 } from 'lucide-react';
+import { toast } from 'sonner';
 
 interface Workspace {
   id: string;
@@ -47,6 +48,7 @@ function HomePage() {
   const [newName, setNewName] = useState('');
   const [creating, setCreating] = useState(false);
   const [showForm, setShowForm] = useState(false);
+  const [pendingDeleteId, setPendingDeleteId] = useState<string | null>(null);
 
   useEffect(() => {
     workspaceApi.list().then((r) => setWorkspaces(r.data)).finally(() => setLoading(false));
@@ -63,13 +65,14 @@ function HomePage() {
     setCreating(false);
   }
 
-  async function handleRemove(id: string, name: string) {
-    if (!confirm(`"${name}" 워크스페이스를 삭제할까요?\n문서와 채팅 기록이 모두 삭제됩니다.`)) return;
+  async function confirmRemove(id: string) {
+    setPendingDeleteId(null);
     try {
       await workspaceApi.remove(id);
       setWorkspaces((prev) => prev.filter((w) => w.id !== id));
+      toast.success('워크스페이스가 삭제되었습니다.');
     } catch {
-      alert('워크스페이스 삭제에 실패했습니다.');
+      toast.error('워크스페이스 삭제에 실패했습니다.');
     }
   }
 
@@ -170,31 +173,55 @@ function HomePage() {
                   </div>
                 </div>
                 <div className="flex items-center gap-1 shrink-0 ml-4" onClick={(e) => e.stopPropagation()}>
-                  <Button
-                    variant="ghost"
-                    size="sm"
-                    onClick={() => router.push(`/workspaces/${ws.id}/documents`)}
-                    className="text-stone-400 hover:text-stone-700"
-                  >
-                    <FileText className="h-3.5 w-3.5" />
-                    <span className="hidden sm:inline text-xs">문서</span>
-                  </Button>
-                  <Button
-                    size="sm"
-                    onClick={() => router.push(`/workspaces/${ws.id}/chat`)}
-                  >
-                    채팅
-                    <ChevronRight className="h-3.5 w-3.5" />
-                  </Button>
-                  <Button
-                    variant="ghost"
-                    size="sm"
-                    onClick={() => handleRemove(ws.id, ws.name)}
-                    className="text-stone-300 hover:text-red-500 hover:bg-red-50"
-                    aria-label={`"${ws.name}" 삭제`}
-                  >
-                    <Trash2 className="h-3.5 w-3.5" />
-                  </Button>
+                  {pendingDeleteId === ws.id ? (
+                    // 삭제 확인 상태
+                    <>
+                      <span className="text-xs text-red-600 font-medium mr-1">삭제할까요?</span>
+                      <Button
+                        size="sm"
+                        onClick={() => confirmRemove(ws.id)}
+                        className="h-7 px-2 text-xs bg-red-500 hover:bg-red-600 text-white"
+                      >
+                        삭제
+                      </Button>
+                      <Button
+                        variant="ghost"
+                        size="sm"
+                        onClick={() => setPendingDeleteId(null)}
+                        className="h-7 px-2 text-xs text-stone-500"
+                      >
+                        취소
+                      </Button>
+                    </>
+                  ) : (
+                    <>
+                      <Button
+                        variant="ghost"
+                        size="sm"
+                        onClick={() => router.push(`/workspaces/${ws.id}/documents`)}
+                        className="text-stone-400 hover:text-stone-700"
+                      >
+                        <FileText className="h-3.5 w-3.5" />
+                        <span className="hidden sm:inline text-xs">문서</span>
+                      </Button>
+                      <Button
+                        size="sm"
+                        onClick={() => router.push(`/workspaces/${ws.id}/chat`)}
+                      >
+                        채팅
+                        <ChevronRight className="h-3.5 w-3.5" />
+                      </Button>
+                      <Button
+                        variant="ghost"
+                        size="sm"
+                        onClick={() => setPendingDeleteId(ws.id)}
+                        className="text-stone-300 hover:text-red-500 hover:bg-red-50"
+                        aria-label={`"${ws.name}" 삭제`}
+                      >
+                        <Trash2 className="h-3.5 w-3.5" />
+                      </Button>
+                    </>
+                  )}
                 </div>
               </div>
             ))}

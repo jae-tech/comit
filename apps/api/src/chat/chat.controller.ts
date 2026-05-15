@@ -2,11 +2,13 @@ import {
   Controller,
   Post,
   Get,
+  Delete,
   Body,
   Param,
   Query,
   UseGuards,
   Res,
+  HttpCode,
 } from '@nestjs/common';
 import { ApiTags, ApiBearerAuth, ApiOperation } from '@nestjs/swagger';
 import type { FastifyReply } from 'fastify';
@@ -64,6 +66,16 @@ export class ChatController {
         reply.raw.end();
       },
     });
+  }
+
+  @Delete('sessions/:sessionId')
+  @HttpCode(204)
+  @ApiOperation({ summary: '채팅 세션 삭제 (메시지 포함)' })
+  deleteSession(
+    @CurrentUser() user: { id: string },
+    @Param('sessionId') sessionId: string,
+  ) {
+    return this.chatService.deleteSession(sessionId, user.id);
   }
 
   @Get('sessions')

@@ -5,6 +5,7 @@ import { useRouter, useParams, useSearchParams } from 'next/navigation';
 import Link from 'next/link';
 import ReactMarkdown from 'react-markdown';
 import { chatApi, workspaceApi, documentApi } from '@/lib/api';
+import { toast } from 'sonner';
 import { AuthGuard } from '@/components/auth-guard';
 import { AppHeader } from '@/components/app-header';
 import { Button } from '@/components/ui/button';
@@ -16,7 +17,7 @@ import {
   SheetTitle,
   SheetDescription,
 } from '@/components/ui/sheet';
-import { Send, FileText, Loader2, Settings, MessageSquare, Plus, Clock, CheckCircle, XCircle } from 'lucide-react';
+import { Send, FileText, Loader2, Settings, MessageSquare, Plus, Clock, CheckCircle, XCircle, Trash2 } from 'lucide-react';
 import { useStreamChat, type Citation } from '@/hooks/useStreamChat';
 
 interface Session {
@@ -49,9 +50,17 @@ function ChatPage() {
   const [docs, setDocs] = useState<Doc[]>([]);
   const [docsOpen, setDocsOpen] = useState(false);
   const bottomRef = useRef<HTMLDivElement>(null);
+  // 새 대화 시작 플래그 — loadSession이 재실행될 때 자동 세션 복원을 막기 위해 사용
+  const isNewSessionRef = useRef(false);
+  // 삭제 확인 대기 중인 세션 ID
+  const [pendingDeleteId, setPendingDeleteId] = useState<string | null>(null);
 
   const setSessionIdWithUrl = useCallback((sid: string | undefined) => {
     setSessionId(sid);
+    if (sid) {
+      // 실제 세션이 생기면 새 대화 플래그 해제
+      isNewSessionRef.current = false;
+    }
     const url = new URL(window.location.href);
     if (sid) {
       url.searchParams.set('session', sid);
@@ -88,7 +97,8 @@ function ChatPage() {
       setSessionId(targetId);
       const msgs = await chatApi.messages(targetId);
       setMessages(msgs.data.map((m) => ({ ...m })));
-    } else if (sessionList.length > 0) {
+    } else if (sessionList.length > 0 && !isNewSessionRef.current) {
+      // isNewSessionRef가 true면 사용자가 새 대화를 명시적으로 시작한 것이므로 복원하지 않음
       const latest = sessionList[sessionList.length - 1];
       setSessionIdWithUrl(latest.id);
       const msgs = await chatApi.messages(latest.id);
@@ -101,6 +111,7 @@ function ChatPage() {
   useEffect(() => { bottomRef.current?.scrollIntoView({ behavior: 'smooth' }); }, [messages]);
 
   function startNewSession() {
+    isNewSessionRef.current = true;
     setSessionIdWithUrl(undefined);
     setMessages([]);
     setSidebarOpen(false);
@@ -111,6 +122,31 @@ function ChatPage() {
     const msgs = await chatApi.messages(sid);
     setMessages(msgs.data.map((m) => ({ ...m })));
     setSidebarOpen(false);
+  }
+
+  function requestDeleteSession(e: React.MouseEvent, sid: string) {
+    e.stopPropagation();
+    setPendingDeleteId(sid);
+  }
+
+  async function confirmDeleteSession(e: React.MouseEvent, sid: string) {
+    e.stopPropagation();
+    setPendingDeleteId(null);
+    try {
+      await chatApi.deleteSession(sid);
+      setSessions((prev) => prev.filter((s) => s.id !== sid));
+      if (sid === sessionId) {
+        startNewSession();
+      }
+      toast.success('대화가 삭제되었습니다.');
+    } catch {
+      toast.error('삭제에 실패했습니다. 다시 시도해 주세요.');
+    }
+  }
+
+  function cancelDeleteSession(e: React.MouseEvent) {
+    e.stopPropagation();
+    setPendingDeleteId(null);
   }
 
   async function handleSend(e: React.FormEvent) {
@@ -275,16 +311,50 @@ function ChatPage() {
               <p className="px-4 py-8 text-center text-xs text-stone-400">대화 기록이 없습니다.</p>
             ) : (
               [...sessions].reverse().map((s) => (
-                <button
+                <div
                   key={s.id}
-                  onClick={() => switchSession(s.id)}
-                  className={`w-full text-left px-4 py-2.5 text-xs transition-colors hover:bg-stone-50 flex items-center gap-2 ${
-                    s.id === sessionId ? 'bg-blue-50 text-blue-700' : 'text-stone-600'
+                  className={`group flex items-center gap-1 px-2 transition-colors hover:bg-stone-50 ${
+                    s.id === sessionId ? 'bg-blue-50' : ''
                   }`}
                 >
-                  <MessageSquare className="h-3 w-3 shrink-0" />
-                  <span className="truncate">{formatSessionDate(s.createdAt)}</span>
-                </button>
+                  {pendingDeleteId === s.id ? (
+                    // 삭제 확인 상태
+                    <div className="flex flex-1 items-center gap-1 py-2 pl-2">
+                      <span className="flex-1 text-xs text-red-600 font-medium">삭제할까요?</span>
+                      <button
+                        onClick={(e) => confirmDeleteSession(e, s.id)}
+                        className="rounded px-2 py-1 text-xs font-medium text-white bg-red-500 hover:bg-red-600 transition-colors"
+                      >
+                        삭제
+                      </button>
+                      <button
+                        onClick={cancelDeleteSession}
+                        className="rounded px-2 py-1 text-xs text-stone-500 hover:bg-stone-100 transition-colors"
+                      >
+                        취소
+                      </button>
+                    </div>
+                  ) : (
+                    <>
+                      <button
+                        onClick={() => switchSession(s.id)}
+                        className={`flex flex-1 items-center gap-2 py-2.5 pl-2 text-xs ${
+                          s.id === sessionId ? 'text-blue-700' : 'text-stone-600'
+                        }`}
+                      >
+                        <MessageSquare className="h-3 w-3 shrink-0" />
+                        <span className="truncate">{formatSessionDate(s.createdAt)}</span>
+                      </button>
+                      <button
+                        onClick={(e) => requestDeleteSession(e, s.id)}
+                        className="shrink-0 rounded p-1 text-stone-300 opacity-0 transition-opacity group-hover:opacity-100 hover:bg-red-50 hover:text-red-500"
+                        title="대화 삭제"
+                      >
+                        <Trash2 className="h-3 w-3" />
+                      </button>
+                    </>
+                  )}
+                </div>
               ))
             )}
           </div>
