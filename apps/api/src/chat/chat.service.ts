@@ -1,4 +1,8 @@
-import { Injectable, NotFoundException } from '@nestjs/common';
+import {
+  Injectable,
+  NotFoundException,
+  ForbiddenException,
+} from '@nestjs/common';
 import { eq, and, sql } from 'drizzle-orm';
 import { Observable, Subject } from 'rxjs';
 import OpenAI from 'openai';
@@ -360,6 +364,21 @@ export class ChatService {
       excerpt: row.content.slice(0, 200),
       chunkIndex: row.chunk_index,
     }));
+  }
+
+  async deleteSession(sessionId: string, userId: string): Promise<void> {
+    const [session] = await this.drizzle.db
+      .select()
+      .from(chatSessions)
+      .where(eq(chatSessions.id, sessionId))
+      .limit(1);
+
+    if (!session) throw new NotFoundException('Session not found');
+    if (session.userId !== userId) throw new ForbiddenException();
+
+    await this.drizzle.db
+      .delete(chatSessions)
+      .where(eq(chatSessions.id, sessionId));
   }
 
   async getSessions(

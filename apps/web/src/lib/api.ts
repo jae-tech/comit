@@ -201,6 +201,8 @@ export const chatApi = {
         createdAt: string;
       }[]
     >(`/chat/sessions/${sessionId}/messages`),
+  deleteSession: (sessionId: string) =>
+    api.delete(`/chat/sessions/${sessionId}`),
   queryUrl: () => `${BASE}/chat/query`,
   queryHeaders: () => {
     const token = typeof window !== 'undefined'
