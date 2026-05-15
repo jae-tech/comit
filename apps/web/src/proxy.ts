@@ -1,7 +1,7 @@
 import { NextResponse } from 'next/server';
 import type { NextRequest } from 'next/server';
 
-export function middleware(req: NextRequest) {
+export function proxy(req: NextRequest) {
   const host = req.headers.get('host') ?? '';
   const demoDomain = process.env.DEMO_DOMAIN ?? 'demo.com.it';
   const isDemoDomain = host === demoDomain || host === `${demoDomain}:3000`;

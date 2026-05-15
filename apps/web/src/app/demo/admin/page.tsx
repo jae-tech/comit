@@ -247,7 +247,7 @@ export default function DemoAdminPage() {
         </div>
 
         {/* 문서 목록 */}
-        <section className="rounded-xl border border-stone-200 bg-white overflow-hidden">
+        <section className="rounded-lg border border-stone-200 bg-white shadow-sm overflow-hidden">
           <div className="px-4 py-3 border-b border-stone-100 flex items-center gap-2">
             <Database className="h-3.5 w-3.5 text-stone-400" />
             <h2 className="text-xs font-semibold text-stone-600 uppercase tracking-wide">
@@ -289,7 +289,7 @@ export default function DemoAdminPage() {
         </section>
 
         {/* 페르소나 프리셋 */}
-        <section className="rounded-xl border border-stone-200 bg-white overflow-hidden">
+        <section className="rounded-lg border border-stone-200 bg-white shadow-sm overflow-hidden">
           <div className="px-4 py-3 border-b border-stone-100 flex items-center justify-between">
             <div className="flex items-center gap-2">
               <UserCircle2 className="h-3.5 w-3.5 text-stone-400" />
@@ -316,7 +316,7 @@ export default function DemoAdminPage() {
                 onChange={(e) => setNewPersonaName(e.target.value)}
                 maxLength={100}
                 placeholder="이름 (예: 고객지원봇)"
-                className="text-xs rounded-lg border border-stone-200 px-3 py-1.5 outline-none focus:border-stone-400 bg-white"
+                className="text-xs rounded-md border border-stone-300 px-3 py-1.5 outline-none focus:border-blue-700 focus:ring-2 focus:ring-blue-700/20 bg-white transition-colors"
                 required
               />
               <textarea
@@ -325,7 +325,7 @@ export default function DemoAdminPage() {
                 maxLength={4000}
                 rows={4}
                 placeholder="시스템 프롬프트 (예: 당신은 친절한 고객지원 담당자입니다.)"
-                className="text-xs rounded-lg border border-stone-200 px-3 py-2 outline-none focus:border-stone-400 bg-white resize-none leading-relaxed"
+                className="text-xs rounded-md border border-stone-300 px-3 py-2 outline-none focus:border-blue-700 focus:ring-2 focus:ring-blue-700/20 bg-white resize-none leading-relaxed transition-colors"
                 required
               />
               <div className="flex items-center justify-between">
@@ -420,7 +420,7 @@ export default function DemoAdminPage() {
         </section>
 
         {/* AI 설정 */}
-        <section className="rounded-xl border border-stone-200 bg-white overflow-hidden">
+        <section className="rounded-lg border border-stone-200 bg-white shadow-sm overflow-hidden">
           <div className="px-4 py-3 border-b border-stone-100 flex items-center gap-2">
             <Bot className="h-3.5 w-3.5 text-stone-400" />
             <h2 className="text-xs font-semibold text-stone-600 uppercase tracking-wide">AI 설정</h2>
@@ -454,7 +454,7 @@ export default function DemoAdminPage() {
                       onChange={(e) => setPersonaDraft(e.target.value)}
                       maxLength={100}
                       placeholder="예: Comit AI"
-                      className="flex-1 text-xs rounded-lg border border-stone-300 px-3 py-1.5 outline-none focus:border-stone-500 bg-white"
+                      className="flex-1 text-xs rounded-md border border-stone-300 px-3 py-1.5 outline-none focus:border-blue-700 focus:ring-2 focus:ring-blue-700/20 bg-white transition-colors"
                     />
                     <button
                       onClick={savePersona}
@@ -506,7 +506,7 @@ export default function DemoAdminPage() {
                     maxLength={4000}
                     rows={6}
                     placeholder="AI의 역할과 행동 지침을 입력하세요."
-                    className="text-xs rounded-lg border border-stone-300 px-3 py-2 outline-none focus:border-stone-500 bg-white resize-none leading-relaxed"
+                    className="text-xs rounded-md border border-stone-300 px-3 py-2 outline-none focus:border-blue-700 focus:ring-2 focus:ring-blue-700/20 bg-white resize-none leading-relaxed transition-colors"
                   />
                   <div className="flex items-center justify-between">
                     <span className="text-[10px] text-stone-400">{promptDraft.length} / 4000</span>
@@ -558,7 +558,7 @@ export default function DemoAdminPage() {
         </section>
 
         {/* 직접 만들어보기 CTA */}
-        <section className="rounded-xl border border-stone-200 bg-stone-900 px-6 py-6 flex flex-col gap-3">
+        <section className="rounded-lg border border-stone-200 bg-stone-900 px-6 py-6 flex flex-col gap-3">
           <div className="flex items-center gap-2">
             <Zap className="h-4 w-4 text-yellow-400" />
             <span className="text-sm font-semibold text-white">직접 만들어보세요</span>
