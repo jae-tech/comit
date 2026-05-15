@@ -17,7 +17,7 @@ import {
   SheetDescription,
 } from '@/components/ui/sheet';
 import { Send, FileText, Loader2, Settings, MessageSquare, Plus, Clock, CheckCircle, XCircle } from 'lucide-react';
-import { useStreamChat, type Citation, type Message } from '@/hooks/useStreamChat';
+import { useStreamChat, type Citation } from '@/hooks/useStreamChat';
 
 interface Session {
   id: string;
@@ -96,6 +96,7 @@ function ChatPage() {
     }
   }, [loadSessions, setMessages, searchParams, setSessionIdWithUrl]);
 
+  // eslint-disable-next-line react-hooks/set-state-in-effect
   useEffect(() => { loadSession(); }, [loadSession]);
   useEffect(() => { bottomRef.current?.scrollIntoView({ behavior: 'smooth' }); }, [messages]);
 

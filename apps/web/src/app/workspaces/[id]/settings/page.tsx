@@ -3,12 +3,12 @@
 import { useState, useEffect } from 'react';
 import { useParams } from 'next/navigation';
 import { toast } from 'sonner';
-import { workspaceApi } from '@/lib/api';
+import { workspaceApi, providerApi } from '@/lib/api';
 import { AuthGuard } from '@/components/auth-guard';
 import { AppHeader, CONTENT_WIDTH } from '@/components/app-header';
 import { Button } from '@/components/ui/button';
 import { Input } from '@/components/ui/input';
-import { Save, Check } from 'lucide-react';
+import { Save, Check, KeyRound } from 'lucide-react';
 
 const PERSONA_TEMPLATES = [
   {
@@ -31,6 +31,12 @@ const PERSONA_TEMPLATES = [
 const DEFAULT_PROMPT =
   "You are a helpful assistant that answers questions based on the provided document context.\nAlways cite your sources. If the answer cannot be found in the context, say so clearly.\nRespond in the same language as the user's question.";
 
+interface RegisteredProvider {
+  id: string;
+  provider: string;
+  model: string;
+}
+
 function SettingsPage() {
   const params = useParams<{ id: string }>();
   const workspaceId = params.id;
@@ -42,10 +48,20 @@ function SettingsPage() {
   const [saved, setSaved] = useState(false);
   const [selectedTemplate, setSelectedTemplate] = useState<string | null>(null);
 
+  // active provider 관련
+  const [registeredProviders, setRegisteredProviders] = useState<RegisteredProvider[]>([]);
+  const [activeProviderId, setActiveProviderId] = useState<string | null>(null);
+  const [providerSaving, setProviderSaving] = useState(false);
+
   useEffect(() => {
-    workspaceApi.get(workspaceId).then((res) => {
-      setPersonaName(res.data.personaName ?? '');
-      setSystemPrompt(res.data.systemPrompt ?? '');
+    Promise.all([
+      workspaceApi.get(workspaceId),
+      providerApi.list(),
+    ]).then(([wsRes, provRes]) => {
+      setPersonaName(wsRes.data.personaName ?? '');
+      setSystemPrompt(wsRes.data.systemPrompt ?? '');
+      setActiveProviderId(wsRes.data.activeProviderId ?? null);
+      setRegisteredProviders(provRes.data);
       setLoading(false);
     });
   }, [workspaceId]);
@@ -81,6 +97,19 @@ function SettingsPage() {
     }
   }
 
+  async function handleProviderSelect(providerId: string) {
+    setProviderSaving(true);
+    try {
+      await workspaceApi.setActiveProvider(workspaceId, providerId);
+      setActiveProviderId(providerId);
+      toast.success('AI 모델이 변경되었습니다.');
+    } catch {
+      toast.error('AI 모델 변경에 실패했습니다.');
+    } finally {
+      setProviderSaving(false);
+    }
+  }
+
   if (loading) {
     return (
       <div className="flex h-screen items-center justify-center text-stone-400 text-sm bg-[#faf9f7]">
@@ -106,6 +135,61 @@ function SettingsPage() {
       />
 
       <main className={`${CONTENT_WIDTH} py-8 flex flex-col gap-8`}>
+
+        {/* AI 모델 선택 */}
+        <section>
+          <p className="text-xs font-medium text-stone-500 uppercase tracking-wider mb-1">
+            AI 모델
+          </p>
+          <p className="text-xs text-stone-400 mb-3">
+            이 워크스페이스 채팅에 사용할 AI Provider를 선택하세요.
+          </p>
+          {registeredProviders.length === 0 ? (
+            <div className="rounded-lg border border-stone-200 bg-white px-4 py-3 text-sm text-stone-400 shadow-sm">
+              등록된 AI Provider가 없습니다.{' '}
+              <a href="/settings/provider" className="text-stone-600 underline underline-offset-2">
+                API 설정
+              </a>
+              에서 먼저 등록해 주세요.
+            </div>
+          ) : (
+            <div className="flex flex-col gap-2">
+              {registeredProviders.map((p) => {
+                const isActive = activeProviderId === p.id;
+                return (
+                  <button
+                    key={p.id}
+                    onClick={() => !isActive && handleProviderSelect(p.id)}
+                    disabled={providerSaving}
+                    className={`flex items-center justify-between rounded-lg border px-4 py-3 text-left transition-colors ${
+                      isActive
+                        ? 'border-stone-900 bg-stone-900 text-white'
+                        : 'border-stone-200 bg-white text-stone-700 hover:border-stone-300 shadow-sm'
+                    } disabled:opacity-50`}
+                  >
+                    <div className="flex items-center gap-3">
+                      <div
+                        className={`w-7 h-7 rounded-md border flex items-center justify-center ${
+                          isActive ? 'bg-stone-800 border-stone-700' : 'bg-stone-50 border-stone-200'
+                        }`}
+                      >
+                        <KeyRound className={`h-3.5 w-3.5 ${isActive ? 'text-stone-300' : 'text-stone-400'}`} />
+                      </div>
+                      <div>
+                        <span className="text-sm font-medium capitalize">{p.provider}</span>
+                        <span className={`ml-2 text-xs font-mono ${isActive ? 'text-stone-300' : 'text-stone-400'}`}>
+                          {p.model}
+                        </span>
+                      </div>
+                    </div>
+                    {isActive && <Check className="h-4 w-4 shrink-0" />}
+                  </button>
+                );
+              })}
+            </div>
+          )}
+        </section>
+
         {/* 템플릿 */}
         <section>
           <p className="text-xs font-medium text-stone-500 uppercase tracking-wider mb-3">템플릿</p>

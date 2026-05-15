@@ -133,6 +133,7 @@ export interface WorkspaceDetail {
   name: string;
   personaName: string | null;
   systemPrompt: string | null;
+  activeProviderId: string | null;
   createdAt: string;
 }
 
@@ -142,16 +143,25 @@ export const workspaceApi = {
   get: (id: string) => api.get<WorkspaceDetail>(`/workspaces/${id}`),
   updatePersona: (id: string, personaName: string, systemPrompt: string) =>
     api.patch<WorkspaceDetail>(`/workspaces/${id}`, { personaName, systemPrompt }),
+  setActiveProvider: (id: string, providerId: string) =>
+    api.patch<WorkspaceDetail>(`/workspaces/${id}/provider`, { providerId }),
   remove: (id: string) => api.delete(`/workspaces/${id}`),
 };
 
 // ── Providers ─────────────────────────────────────────
+export interface ModelInfo {
+  id: string;
+  name: string;
+}
+
 export const providerApi = {
   list: () =>
     api.get<{ id: string; provider: string; model: string; createdAt: string }[]>('/providers'),
   create: (provider: string, apiKey: string, model: string) =>
     api.post('/providers', { provider, apiKey, model }),
   remove: (id: string) => api.delete(`/providers/${id}`),
+  models: (provider: string) =>
+    api.get<{ provider: string; models: ModelInfo[] }>(`/providers/models?provider=${provider}`),
 };
 
 // ── Documents ─────────────────────────────────────────
@@ -210,19 +220,26 @@ export const demoApi = {
   infoUrl: () => `${BASE}/demo/info`,
 };
 
-// ── Demo Admin (DEMO_ADMIN_TOKEN 인증) ────────────────
+// ── Demo 설정 (인증 없음) ─────────────────────────────
 export const demoAdminApi = {
-  settingsUrl: () => `${BASE}/demo/admin/settings`,
-  updateSettings: (
-    token: string,
-    payload: { personaName?: string; systemPrompt?: string },
-  ) =>
-    fetch(`${BASE}/demo/admin/settings`, {
+  updateSettings: (payload: { personaName?: string; systemPrompt?: string }) =>
+    fetch(`${BASE}/demo/settings`, {
       method: 'PATCH',
-      headers: {
-        'Content-Type': 'application/json',
-        Authorization: `Bearer ${token}`,
-      },
+      headers: { 'Content-Type': 'application/json' },
       body: JSON.stringify(payload),
+    }),
+  addPersona: (payload: { name: string; prompt: string }) =>
+    fetch(`${BASE}/demo/personas`, {
+      method: 'POST',
+      headers: { 'Content-Type': 'application/json' },
+      body: JSON.stringify(payload),
+    }),
+  activatePersona: (personaId: string) =>
+    fetch(`${BASE}/demo/personas/${personaId}/activate`, {
+      method: 'PUT',
+    }),
+  removePersona: (personaId: string) =>
+    fetch(`${BASE}/demo/personas/${personaId}`, {
+      method: 'DELETE',
     }),
 };
