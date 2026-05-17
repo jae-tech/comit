@@ -215,6 +215,50 @@ export const chatApi = {
   },
 };
 
+// ── Usage ─────────────────────────────────────────────
+export interface UsageSummary {
+  totalInputTokens: number;
+  totalOutputTokens: number;
+  totalEmbeddingTokens: number;
+  estimatedCostUsd: number;
+  byWorkspace: {
+    workspaceId: string;
+    workspaceName: string;
+    inputTokens: number;
+    outputTokens: number;
+    costUsd: number;
+  }[];
+}
+
+export interface DailyUsage {
+  date: string;
+  inputTokens: number;
+  outputTokens: number;
+  embeddingTokens: number;
+  costUsd: number;
+}
+
+export interface SessionUsage {
+  sessionId: string;
+  workspaceId: string;
+  workspaceName: string;
+  createdAt: string;
+  messageCount: number;
+  inputTokens: number;
+  outputTokens: number;
+  costUsd: number;
+}
+
+export const usageApi = {
+  summary: () => api.get<UsageSummary>('/usage/summary'),
+  daily: (days = 30) => api.get<DailyUsage[]>(`/usage/daily?days=${days}`),
+  sessions: (workspaceId?: string, limit = 20) => {
+    const params = new URLSearchParams({ limit: String(limit) });
+    if (workspaceId) params.set('workspaceId', workspaceId);
+    return api.get<SessionUsage[]>(`/usage/sessions?${params.toString()}`);
+  },
+};
+
 // ── Demo (public, no auth) ────────────────────────────
 export const demoApi = {
   chatUrl: () => `${BASE}/demo/chat`,

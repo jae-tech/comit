@@ -14,46 +14,11 @@ import {
   NotFoundException,
   ForbiddenException,
 } from '@nestjs/common';
-import { IsString, IsNotEmpty, IsOptional, MaxLength } from 'class-validator';
 import { ApiTags, ApiOperation } from '@nestjs/swagger';
 import type { FastifyReply } from 'fastify';
 import { DemoService } from './demo.service';
 import { DemoThrottlerGuard } from './demo-throttler.guard';
-
-class DemoChatDto {
-  @IsString()
-  @IsNotEmpty()
-  @MaxLength(2000)
-  question!: string;
-
-  @IsOptional()
-  @IsString()
-  sessionId?: string;
-}
-
-class DemoSettingsDto {
-  @IsOptional()
-  @IsString()
-  @MaxLength(100)
-  personaName?: string;
-
-  @IsOptional()
-  @IsString()
-  @MaxLength(4000)
-  systemPrompt?: string;
-}
-
-class AddPersonaDto {
-  @IsString()
-  @IsNotEmpty()
-  @MaxLength(100)
-  name!: string;
-
-  @IsString()
-  @IsNotEmpty()
-  @MaxLength(4000)
-  prompt!: string;
-}
+import { DemoChatDto, DemoSettingsDto, AddPersonaDto } from './demo.dto';
 
 @ApiTags('demo')
 @UseGuards(DemoThrottlerGuard)

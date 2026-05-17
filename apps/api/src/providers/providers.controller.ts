@@ -20,7 +20,7 @@ import {
 import { JwtAuthGuard } from '../common/guards/jwt-auth.guard';
 import { CurrentUser } from '../common/decorators/current-user.decorator';
 import { ProvidersService } from './providers.service';
-import type { CreateProviderDto } from '@comit/shared';
+import { CreateProviderDto, UpdateProviderDto } from './providers.dto';
 
 @ApiTags('providers')
 @ApiBearerAuth()
@@ -56,7 +56,7 @@ export class ProvidersController {
   update(
     @CurrentUser() user: { id: string },
     @Param('id') id: string,
-    @Body() dto: Partial<CreateProviderDto>,
+    @Body() dto: UpdateProviderDto,
   ) {
     return this.providersService.update(user.id, id, dto);
   }

@@ -8,7 +8,7 @@ import { AuthGuard } from '@/components/auth-guard';
 import { AppHeader, CONTENT_WIDTH } from '@/components/app-header';
 import { Button } from '@/components/ui/button';
 import { Input } from '@/components/ui/input';
-import { FileText, Plus, Settings, LogOut, ChevronRight, MessageSquare, Trash2 } from 'lucide-react';
+import { FileText, Plus, Settings, LogOut, ChevronRight, MessageSquare, Trash2, BarChart2 } from 'lucide-react';
 import { toast } from 'sonner';
 
 interface Workspace {
@@ -88,6 +88,10 @@ function HomePage() {
         home
         right={
           <>
+            <Button variant="ghost" size="sm" onClick={() => router.push('/usage')}>
+              <BarChart2 className="h-4 w-4" />
+              <span className="hidden sm:inline">사용량</span>
+            </Button>
             <Button variant="ghost" size="sm" onClick={() => router.push('/settings/provider')}>
               <Settings className="h-4 w-4" />
               <span className="hidden sm:inline">API 설정</span>

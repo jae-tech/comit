@@ -86,7 +86,7 @@ export class EmbeddingProcessor {
         .delete(documentChunks)
         .where(eq(documentChunks.documentId, documentId));
 
-      const vectors = await this.embedChunks(
+      const { vectors, embeddingTokens } = await this.embedChunks(
         chunks,
         creds.provider,
         creds.apiKey,
@@ -114,7 +114,7 @@ export class EmbeddingProcessor {
 
       await this.drizzle.db
         .update(documents)
-        .set({ status: 'ready' })
+        .set({ status: 'ready', embeddingTokens })
         .where(eq(documents.id, documentId));
 
       this.logger.log(
@@ -138,7 +138,7 @@ export class EmbeddingProcessor {
     chunks: string[],
     provider: string,
     apiKey: string,
-  ): Promise<number[][]> {
+  ): Promise<{ vectors: number[][]; embeddingTokens: number | null }> {
     if (provider === 'openai') {
       const openai = new OpenAI({ apiKey });
       const response = await openai.embeddings.create({
@@ -146,10 +146,14 @@ export class EmbeddingProcessor {
         input: chunks,
         dimensions: EMBEDDING_DIM,
       });
-      return response.data.map((d) => d.embedding);
+      return {
+        vectors: response.data.map((d) => d.embedding),
+        embeddingTokens: response.usage?.total_tokens ?? null,
+      };
     }
 
     // SDK는 outputDimensionality를 지원하지 않으므로 REST 직접 호출
+    // Gemini batchEmbedContents는 tokenCount를 반환하지 않으므로 null 저장
     const url = `${GEMINI_API_BASE}/models/${GEMINI_EMBEDDING_MODEL}:batchEmbedContents`;
     const body = {
       requests: chunks.map((text) => ({
@@ -171,7 +175,10 @@ export class EmbeddingProcessor {
       );
     }
     const data = (await res.json()) as { embeddings: { values: number[] }[] };
-    return data.embeddings.map((e) => e.values);
+    return {
+      vectors: data.embeddings.map((e) => e.values),
+      embeddingTokens: null,
+    };
   }
 
   private async deleteFile(filePath: string): Promise<void> {

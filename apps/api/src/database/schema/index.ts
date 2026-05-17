@@ -97,6 +97,7 @@ export const documents = pgTable('documents', {
   status: varchar('status').notNull().default('pending'),
   fileSize: bigint('file_size', { mode: 'number' }).notNull(),
   filePath: text('file_path').notNull(),
+  embeddingTokens: integer('embedding_tokens'),
   createdAt: timestamp('created_at', { withTimezone: true })
     .notNull()
     .defaultNow(),
@@ -152,6 +153,8 @@ export const chatMessages = pgTable('chat_messages', {
   role: varchar('role').notNull(),
   content: text('content').notNull(),
   citations: jsonb('citations_json').notNull().default([]).$type<Citation[]>(),
+  inputTokens: integer('input_tokens'),
+  outputTokens: integer('output_tokens'),
   createdAt: timestamp('created_at', { withTimezone: true })
     .notNull()
     .defaultNow(),

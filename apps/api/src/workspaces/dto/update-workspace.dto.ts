@@ -1,19 +1,7 @@
-import { IsOptional, IsString, MaxLength } from 'class-validator';
-import { ApiPropertyOptional } from '@nestjs/swagger';
+import { createZodDto } from 'nestjs-zod';
+import { UpdateWorkspaceSchema, SetActiveProviderSchema } from '@comit/shared';
 
-export class UpdateWorkspaceDto {
-  @ApiPropertyOptional({ description: 'AI 페르소나 이름', maxLength: 100 })
-  @IsOptional()
-  @IsString()
-  @MaxLength(100)
-  personaName?: string;
-
-  @ApiPropertyOptional({
-    description: '시스템 프롬프트 (null이면 기본값 사용)',
-    maxLength: 2000,
-  })
-  @IsOptional()
-  @IsString()
-  @MaxLength(2000)
-  systemPrompt?: string;
-}
+export class UpdateWorkspaceDto extends createZodDto(UpdateWorkspaceSchema) {}
+export class SetActiveProviderDto extends createZodDto(
+  SetActiveProviderSchema,
+) {}

@@ -29,3 +29,13 @@
 - [ ] **ThrottlerModule Redis store** — `DemoModule`의 `ThrottlerModule.forRoot()`는 인메모리 저장소를 사용. 다중 인스턴스 배포 시 IP별 제한이 인스턴스마다 독립적으로 동작하여 사실상 무력화됨. 프로덕션 다중 인스턴스 환경에서는 `@nestjs/throttler` + `ThrottlerStorageRedisService`로 교체 필요.
 
 - [ ] **Demo 테스트 파일 작성** — `apps/api/src/demo/demo.service.spec.ts` (onApplicationBootstrap 검증, enabled=false 503, getDocs DEMO_HIDE_DOCS), `apps/api/src/demo/demo-admin.guard.spec.ts` (토큰 검증 4 케이스), `apps/api/src/demo/demo.controller.spec.ts` (SSE Content-Type, 빈 question 400, getDocs/getInfo 200). Test plan: `~/.gstack/projects/orbit/jae-tech-main-test-plan-20260514-115730.md`
+
+## Usage Dashboard (from /plan-ceo-review 2026-05-15)
+
+- [ ] **사용량 알림 임계값 (P2)** — 월 $X 초과 시 UI 경고 배너. `users` 테이블에 `budget_usd` NUMERIC 컬럼 추가 필요. `/usage` 페이지 안정화 후 구현. Effort: L (human) / M (CC+gstack). Context: 현재 대시보드는 토큰+비용 표시만. 알림은 사용자가 예상치 못한 비용을 방지하는 다음 단계. Where: `apps/api/src/users/`, `apps/web/src/app/usage/`.
+
+- [ ] **사용량 데이터 CSV 내보내기 (P3)** — `GET /usage/export?from=YYYY-MM-DD&to=YYYY-MM-DD` → CSV 다운로드. 회계 처리/월별 정산에 유용. 포트폴리오 차별성 포인트. Effort: S (human) / XS (CC+gstack). Context: 대시보드 UI 증명 후 백엔드 엔드포인트 1개 추가. Where: `apps/api/src/usage/usage.controller.ts`.
+
+## Zod 마이그레이션 후속 (from /plan-eng-review 2026-05-15)
+
+- [ ] **프론트엔드 폼 검증 zodResolver 연동 (P3)** — shared에 Zod 스키마 생기면 로그인/회원가입 폼에 `react-hook-form + @hookform/resolvers/zod`로 동일 규칙 재사용. 현재 @comit/web에 react-hook-form 없음. Effort: XS (CC+gstack). **Depends on:** Zod 전환 완료. Where: `apps/web/src/app/login/`, `apps/web/src/app/register/`.

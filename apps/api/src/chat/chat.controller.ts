@@ -15,7 +15,7 @@ import type { FastifyReply } from 'fastify';
 import { JwtAuthGuard } from '../common/guards/jwt-auth.guard';
 import { CurrentUser } from '../common/decorators/current-user.decorator';
 import { ChatService } from './chat.service';
-import type { ChatQueryDto } from '@comit/shared';
+import { ChatQueryDto } from './chat.dto';
 
 @ApiTags('chat')
 @ApiBearerAuth()

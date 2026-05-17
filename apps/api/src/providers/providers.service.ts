@@ -10,11 +10,11 @@ import { DrizzleService } from '../database/drizzle.service';
 import { aiProviders, type AiProvider } from '../database/schema';
 import { EncryptionService } from './encryption.service';
 import {
-  CreateProviderDto,
   ProviderResponse,
   ModelInfo,
   ModelsResponse,
 } from '@comit/shared';
+import { CreateProviderDto, UpdateProviderDto } from './providers.dto';
 
 // LLM 모델만 필터링하는 패턴
 const LLM_PATTERNS: Record<string, RegExp> = {
@@ -63,7 +63,7 @@ export class ProvidersService {
   async update(
     userId: string,
     id: string,
-    dto: Partial<CreateProviderDto>,
+    dto: UpdateProviderDto,
   ): Promise<ProviderResponse> {
     const provider = await this.findOneOrFail(userId, id);
 

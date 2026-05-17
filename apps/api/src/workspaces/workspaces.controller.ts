@@ -13,8 +13,10 @@ import { ApiTags, ApiBearerAuth, ApiOperation } from '@nestjs/swagger';
 import { JwtAuthGuard } from '../common/guards/jwt-auth.guard';
 import { CurrentUser } from '../common/decorators/current-user.decorator';
 import { WorkspacesService } from './workspaces.service';
-import { UpdateWorkspaceDto } from './dto/update-workspace.dto';
-import type { SetActiveProviderDto } from '@comit/shared';
+import {
+  UpdateWorkspaceDto,
+  SetActiveProviderDto,
+} from './dto/update-workspace.dto';
 
 @ApiTags('workspaces')
 @ApiBearerAuth()

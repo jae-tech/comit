@@ -6,6 +6,8 @@ import {
 import { eq, and, sql } from 'drizzle-orm';
 import { Observable, Subject } from 'rxjs';
 import OpenAI from 'openai';
+import type { Stream } from 'openai/streaming';
+import type { ChatCompletionChunk } from 'openai/resources/chat/completions';
 import { GoogleGenerativeAI } from '@google/generative-ai';
 import { DrizzleService } from '../database/drizzle.service';
 import {
@@ -23,6 +25,14 @@ const TOP_K = 5;
 const DEFAULT_SYSTEM_PROMPT = `You are a helpful assistant that answers questions based on the provided document context.
 Always cite your sources. If the answer cannot be found in the context, say so clearly.
 Respond in the same language as the user's question.`;
+
+interface StreamResult {
+  content: string;
+  inputTokens: number | null;
+  outputTokens: number | null;
+  /** quota 초과 등으로 스트림이 중단된 경우 true */
+  aborted: boolean;
+}
 
 @Injectable()
 export class ChatService {
@@ -136,9 +146,9 @@ export class ChatService {
       : dto.question;
 
     // LLM 스트리밍
-    let fullContent = '';
+    let result: StreamResult;
     if (creds.provider === 'gemini') {
-      fullContent = await this.streamGemini(
+      result = await this.streamGemini(
         creds.apiKey,
         creds.model,
         userContent,
@@ -146,7 +156,7 @@ export class ChatService {
         subject,
       );
     } else {
-      fullContent = await this.streamOpenAI(
+      result = await this.streamOpenAI(
         creds.apiKey,
         creds.model,
         userContent,
@@ -155,6 +165,9 @@ export class ChatService {
       );
     }
 
+    // quota 초과 등으로 중단된 경우 assistant 메시지 저장 생략
+    if (result.aborted) return;
+
     subject.next({
       data: JSON.stringify({ type: 'done', citations }),
     } as MessageEvent);
@@ -162,8 +175,10 @@ export class ChatService {
     await this.drizzle.db.insert(chatMessages).values({
       sessionId: session.id,
       role: 'assistant',
-      content: fullContent,
+      content: result.content,
       citations,
+      inputTokens: result.inputTokens,
+      outputTokens: result.outputTokens,
     });
 
     subject.complete();
@@ -188,7 +203,7 @@ export class ChatService {
     userContent: string,
     systemPrompt: string,
     subject: Subject<MessageEvent>,
-  ): Promise<string> {
+  ): Promise<StreamResult> {
     const genai = new GoogleGenerativeAI(apiKey);
     const geminiModel = genai.getGenerativeModel({
       model: model || 'gemini-2.5-flash',
@@ -207,7 +222,12 @@ export class ChatService {
           }),
         } as MessageEvent);
         subject.complete();
-        return '';
+        return {
+          content: '',
+          inputTokens: null,
+          outputTokens: null,
+          aborted: true,
+        };
       }
       throw err;
     }
@@ -235,11 +255,25 @@ export class ChatService {
           }),
         } as MessageEvent);
         subject.complete();
-        return fullContent;
+        return {
+          content: fullContent,
+          inputTokens: null,
+          outputTokens: null,
+          aborted: true,
+        };
       }
       throw err;
     }
-    return fullContent;
+
+    // Gemini usageMetadata는 stream 완료 후 response에서 접근
+    const response = await stream.response;
+    const usage = response.usageMetadata;
+    return {
+      content: fullContent,
+      inputTokens: usage?.promptTokenCount ?? null,
+      outputTokens: usage?.candidatesTokenCount ?? null,
+      aborted: false,
+    };
   }
 
   private async streamOpenAI(
@@ -248,16 +282,15 @@ export class ChatService {
     userContent: string,
     systemPrompt: string,
     subject: Subject<MessageEvent>,
-  ): Promise<string> {
+  ): Promise<StreamResult> {
     const openai = new OpenAI({ apiKey });
 
-    let stream: AsyncIterable<{
-      choices: Array<{ delta: { content?: string | null } }>;
-    }>;
+    let stream: Stream<ChatCompletionChunk>;
     try {
       stream = await openai.chat.completions.create({
         model: model || 'gpt-4o-mini',
         stream: true,
+        stream_options: { include_usage: true },
         messages: [
           { role: 'system', content: systemPrompt },
           { role: 'user', content: userContent },
@@ -272,12 +305,20 @@ export class ChatService {
           }),
         } as MessageEvent);
         subject.complete();
-        return '';
+        return {
+          content: '',
+          inputTokens: null,
+          outputTokens: null,
+          aborted: true,
+        };
       }
       throw err;
     }
 
     let fullContent = '';
+    let inputTokens: number | null = null;
+    let outputTokens: number | null = null;
+
     for await (const chunk of stream) {
       const token = chunk.choices[0]?.delta?.content ?? '';
       if (token) {
@@ -289,8 +330,14 @@ export class ChatService {
           }),
         } as MessageEvent);
       }
+      // usage는 마지막 청크에만 포함됨
+      if (chunk.usage) {
+        inputTokens = chunk.usage.prompt_tokens;
+        outputTokens = chunk.usage.completion_tokens;
+      }
     }
-    return fullContent;
+
+    return { content: fullContent, inputTokens, outputTokens, aborted: false };
   }
 
   private async retrieveContext(
