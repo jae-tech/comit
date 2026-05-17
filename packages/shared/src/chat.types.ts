@@ -1,10 +1,13 @@
-import type { Citation } from './document.types';
+import { z } from 'zod';
+import type { Citation } from './document.types.js';
 
-export interface ChatQueryDto {
-  workspaceId: string;
-  sessionId?: string;
-  question: string;
-}
+export const ChatQuerySchema = z.object({
+  workspaceId: z.string().uuid(),
+  sessionId: z.string().uuid().optional(),
+  question: z.string().min(1).max(10000),
+});
+
+export type ChatQueryDto = z.infer<typeof ChatQuerySchema>;
 
 export type ChatStreamChunk =
   | { type: 'token'; content: string }

@@ -1,14 +1,14 @@
 // Auth
-export * from './auth.types';
+export * from './auth.types.js';
 
 // Provider
-export * from './provider.types';
+export * from './provider.types.js';
 
 // Document
-export * from './document.types';
+export * from './document.types.js';
 
 // Chat
-export * from './chat.types';
+export * from './chat.types.js';
 
 // Workspace
-export * from './workspace.types';
+export * from './workspace.types.js';
