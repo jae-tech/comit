@@ -1,4 +1,8 @@
-import { DemoChatSchema, DemoSettingsSchema, AddPersonaSchema } from './demo.dto';
+import {
+  DemoChatSchema,
+  DemoSettingsSchema,
+  AddPersonaSchema,
+} from './demo.dto';
 
 describe('DemoChatSchema', () => {
   it('1자 이상 2000자 이하 question은 통과한다', () => {

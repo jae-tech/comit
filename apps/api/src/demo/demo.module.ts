@@ -3,8 +3,8 @@ import { ThrottlerModule } from '@nestjs/throttler';
 import { DemoController } from './demo.controller';
 import { DemoService } from './demo.service';
 import { DemoThrottlerGuard } from './demo-throttler.guard';
-import { ChatModule } from '../chat/chat.module';
-import { WorkspacesModule } from '../workspaces/workspaces.module';
+import { ChatModule } from '@/chat/chat.module';
+import { WorkspacesModule } from '@/workspaces/workspaces.module';
 
 @Module({
   imports: [

@@ -11,9 +11,9 @@ const { PDFParse } = require('pdf-parse') as {
   };
 };
 import OpenAI from 'openai';
-import { DrizzleService } from '../database/drizzle.service';
-import { documents, documentChunks } from '../database/schema';
-import { ProvidersService } from '../providers/providers.service';
+import { DrizzleService } from '@/database/drizzle.service';
+import { documents, documentChunks } from '@/database/schema';
+import { ProvidersService } from '@/providers/providers.service';
 import { EMBEDDING_QUEUE } from './constants';
 
 const CHUNK_SIZE = 2000;

@@ -7,15 +7,15 @@ import {
 import { ConfigService } from '@nestjs/config';
 import { Observable, Subject } from 'rxjs';
 import { eq, sql } from 'drizzle-orm';
-import { DrizzleService } from '../database/drizzle.service';
+import { DrizzleService } from '@/database/drizzle.service';
 import {
   workspaces,
   aiProviders,
   chatSessions,
   documents,
   type PersonaEntry,
-} from '../database/schema';
-import { ChatService } from '../chat/chat.service';
+} from '@/database/schema';
+import { ChatService } from '@/chat/chat.service';
 
 @Injectable()
 export class DemoService implements OnApplicationBootstrap {

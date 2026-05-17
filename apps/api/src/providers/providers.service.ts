@@ -6,14 +6,10 @@ import {
 } from '@nestjs/common';
 import { eq, and } from 'drizzle-orm';
 import OpenAI from 'openai';
-import { DrizzleService } from '../database/drizzle.service';
-import { aiProviders, type AiProvider } from '../database/schema';
+import { DrizzleService } from '@/database/drizzle.service';
+import { aiProviders, type AiProvider } from '@/database/schema';
 import { EncryptionService } from './encryption.service';
-import {
-  ProviderResponse,
-  ModelInfo,
-  ModelsResponse,
-} from '@comit/shared';
+import { ProviderResponse, ModelInfo, ModelsResponse } from '@comit/shared';
 import { CreateProviderDto, UpdateProviderDto } from './providers.dto';
 
 // LLM 모델만 필터링하는 패턴

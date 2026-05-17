@@ -1,7 +1,7 @@
 import { Injectable } from '@nestjs/common';
 import { sql } from 'drizzle-orm';
-import { DrizzleService } from '../database/drizzle.service';
-import { estimateCost } from '../common/pricing';
+import { DrizzleService } from '@/database/drizzle.service';
+import { estimateCost } from '@/common/pricing';
 
 export interface UsageSummary {
   totalInputTokens: number;

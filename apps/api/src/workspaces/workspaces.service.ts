@@ -5,7 +5,7 @@ import {
 } from '@nestjs/common';
 import { eq, and } from 'drizzle-orm';
 import { unlink } from 'fs/promises';
-import { DrizzleService } from '../database/drizzle.service';
+import { DrizzleService } from '@/database/drizzle.service';
 import {
   workspaces,
   documents,
@@ -13,7 +13,7 @@ import {
   chatMessages,
   aiProviders,
   type Workspace,
-} from '../database/schema';
+} from '@/database/schema';
 import { UpdateWorkspaceDto } from './dto/update-workspace.dto';
 
 @Injectable()

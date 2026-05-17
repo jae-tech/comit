@@ -4,9 +4,9 @@ import { writeFile, unlink, mkdir, stat } from 'fs/promises';
 import { join } from 'path';
 import { InjectQueue } from '@nestjs/bull';
 import type { Queue } from 'bull';
-import { DrizzleService } from '../database/drizzle.service';
-import { documents, type Document } from '../database/schema';
-import { WorkspacesService } from '../workspaces/workspaces.service';
+import { DrizzleService } from '@/database/drizzle.service';
+import { documents, type Document } from '@/database/schema';
+import { WorkspacesService } from '@/workspaces/workspaces.service';
 import { EMBEDDING_QUEUE } from './constants';
 
 export interface UploadedFileDto {

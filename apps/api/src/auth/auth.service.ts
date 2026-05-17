@@ -9,8 +9,8 @@ import { InjectRedis } from '@nestjs-modules/ioredis';
 import type Redis from 'ioredis';
 import * as bcrypt from 'bcrypt';
 import { eq } from 'drizzle-orm';
-import { DrizzleService } from '../database/drizzle.service';
-import { users, type User } from '../database/schema';
+import { DrizzleService } from '@/database/drizzle.service';
+import { users, type User } from '@/database/schema';
 import { RegisterDto, LoginDto, AuthTokens } from '@comit/shared';
 
 @Injectable()

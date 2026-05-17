@@ -3,8 +3,8 @@ import { Test } from '@nestjs/testing';
 import { getQueueToken } from '@nestjs/bull';
 import { ForbiddenException } from '@nestjs/common';
 import { DocumentsService } from './documents.service';
-import { WorkspacesService } from '../workspaces/workspaces.service';
-import { DrizzleService } from '../database/drizzle.service';
+import { WorkspacesService } from '@/workspaces/workspaces.service';
+import { DrizzleService } from '@/database/drizzle.service';
 import { EMBEDDING_QUEUE } from './constants';
 
 const mockDrizzle = () => ({

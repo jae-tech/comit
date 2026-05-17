@@ -21,8 +21,8 @@ import {
 } from '@nestjs/swagger';
 import '@fastify/multipart';
 import type { FastifyRequest, FastifyReply } from 'fastify';
-import { JwtAuthGuard } from '../common/guards/jwt-auth.guard';
-import { CurrentUser } from '../common/decorators/current-user.decorator';
+import { JwtAuthGuard } from '@/common/guards/jwt-auth.guard';
+import { CurrentUser } from '@/common/decorators/current-user.decorator';
 import { DocumentsService } from './documents.service';
 
 @ApiTags('documents')

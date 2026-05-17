@@ -9,16 +9,16 @@ import OpenAI from 'openai';
 import type { Stream } from 'openai/streaming';
 import type { ChatCompletionChunk } from 'openai/resources/chat/completions';
 import { GoogleGenerativeAI } from '@google/generative-ai';
-import { DrizzleService } from '../database/drizzle.service';
+import { DrizzleService } from '@/database/drizzle.service';
 import {
   chatSessions,
   chatMessages,
   documents,
   type ChatSession,
   type ChatMessage,
-} from '../database/schema';
-import { ProvidersService } from '../providers/providers.service';
-import { WorkspacesService } from '../workspaces/workspaces.service';
+} from '@/database/schema';
+import { ProvidersService } from '@/providers/providers.service';
+import { WorkspacesService } from '@/workspaces/workspaces.service';
 import type { ChatQueryDto, Citation } from '@comit/shared';
 
 const TOP_K = 5;
