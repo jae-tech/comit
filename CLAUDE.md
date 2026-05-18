@@ -57,10 +57,25 @@ Key modules in `src/`:
 | `providers/` | BYOK — stores encrypted AI provider keys (AES-256-GCM via `EncryptionService`) |
 | `workspaces/` | Workspace CRUD; all other resources are scoped to a workspace |
 | `documents/` | File upload → Bull queue → `EmbeddingProcessor` (chunking + OpenAI embeddings → pgvector) |
-| `chat/` | RAG query: pgvector cosine similarity → LLM streaming via SSE (`Observable<MessageEvent>`) |
+| `chat/` | RAG query: LangGraph StateGraph pipeline — load history → query rewrite → retrieve → ReAct generate; SSE streaming via `Observable<MessageEvent>`; `chat/graph/` contains nodes and tools |
 | `demo/` | Public demo endpoints (no JWT): `/demo/chat` SSE, `/demo/docs`, `/demo/info`; rate-limited via `DemoThrottlerGuard` (10 req/60s per IP); `DemoAdminGuard` protects future write paths |
 | `database/` | TypeORM entities, migrations, `DatabaseInitService` (ensures pgvector extension on boot) |
 | `common/` | `@CurrentUser()` param decorator, `JwtAuthGuard` |
+
+**LangGraph chat pipeline (`src/chat/graph/`):**
+
+```
+graph/
+├── rag.graph.ts           ← StateGraph 정의 (RagState: workspaceId, sessionId, history, citations, ...)
+├── rag-state.ts           ← RagState interface
+├── nodes/
+│   ├── load-history.node.ts   ← DB에서 chat_messages 최근 10개 로드 → HumanMessage/AIMessage 변환
+│   ├── query-rewrite.node.ts  ← 대화 히스토리 기반 쿼리 재작성 (지시어 해소)
+│   ├── retrieve.node.ts       ← pgvector 코사인 유사도 검색
+│   └── generate.node.ts       ← LLM 생성 + ReAct 루프 (max 3 iterations); emits `thinking` SSE chunks
+└── tools/
+    └── document-search.tool.ts ← LangChain Tool 래퍼 (ReAct에서 추가 검색 시 사용)
+```
 
 **Important runtime details:**
 - API uses `@nestjs/platform-fastify`, not Express. Use Fastify-compatible APIs.
@@ -76,17 +91,17 @@ Key modules in `src/`:
 **Note from `apps/web/AGENTS.md`:** This Next.js version has breaking changes from older versions — APIs, conventions, and file structure may differ from training data. Read `node_modules/next/dist/docs/` before writing Next.js-specific code.
 
 Key patterns:
-- `src/lib/api.ts` — all API calls via axios with a `useAuthStore` interceptor that injects the JWT Bearer token on every request and clears auth + redirects to `/login` on 401. `demoApi` object provides unauthenticated URL helpers for demo endpoints.
+- `src/lib/api.ts` — all API calls via axios with a `useAuthStore` interceptor that injects the JWT Bearer token on every request and clears auth + redirects to `/login` on 401. `demoApi` object provides unauthenticated URL helpers for demo endpoints. Token refresh uses a shared `refreshPromise: Promise<string> | null` to prevent race conditions when multiple requests 401 simultaneously.
 - `src/store/auth.ts` — Zustand store persisted to localStorage as `comit-auth`; holds `accessToken` and `refreshToken`.
 - Chat streaming uses `fetch` with SSE (not EventSource, since EventSource only supports GET). See `chatApi.queryUrl()` / `chatApi.queryHeaders()` in `api.ts`.
 - `src/hooks/useDemoChat.ts` — demo-only hook; manages session ID via `useRef`, streams SSE chunks, handles `session_created`/`token`/`done`/`quota_exceeded`/`error` chunk types.
-- `src/hooks/useStreamChat.ts` — authenticated workspace chat hook (mirrors demo hook pattern but uses JWT headers).
-- `src/middleware.ts` — Next.js middleware: rewrites `demo.com.it/*` → `/demo/*` internally; redirects `/demo/*` on prod main domain to `demo.com.it`.
+- `src/hooks/useStreamChat.ts` — authenticated workspace chat hook (mirrors demo hook pattern but uses JWT headers). Handles `thinking` SSE chunks (ReAct tool_call steps) by showing an animated search indicator; clears on first `token` chunk.
+- `src/proxy.ts` — Next.js proxy: rewrites `demo.com.it/*` → `/demo/*` internally; redirects `/demo/*` on prod main domain to `demo.com.it`. (This project uses `proxy.ts`, not `middleware.ts` — both cannot coexist.)
 - Routes: `/login`, `/register`, `/settings` (provider config), `/workspaces`, `/workspaces/[id]/chat`, `/workspaces/[id]/documents`, `/demo` (public chatbot widget), `/demo/admin` (read-only setup info).
 
 ### Shared (`packages/shared`)
 
-Pure TypeScript types (no compiled output). Imported directly as source via `"main": "./src/index.ts"`. Contains DTOs and response types used by both API and web: `AuthTokens`, `RegisterDto`, `LoginDto`, `CreateProviderDto`, `ProviderResponse`, `ChatQueryDto`, `ChatStreamChunk`, `Citation`.
+Pure TypeScript types (no compiled output). Imported directly as source via `"main": "./src/index.ts"`. Contains DTOs and response types used by both API and web: `AuthTokens`, `RegisterDto`, `LoginDto`, `CreateProviderDto`, `ProviderResponse`, `ChatQueryDto`, `ChatStreamChunk`, `Citation`. `ChatStreamChunk` includes the `thinking` variant (`step: 'query_rewrite' | 'retrieve' | 'tool_call'`) emitted by the ReAct agent.
 
 ## Environment Variables
 

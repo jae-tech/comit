@@ -8,6 +8,8 @@
 - **인용 출처 표시** — 답변마다 참조한 문서 청크를 표시해 신뢰할 수 있는 답변인지 직접 확인할 수 있습니다
 - **워크스페이스별 AI 페르소나** — 워크스페이스마다 시스템 프롬프트와 페르소나 이름을 커스텀할 수 있습니다
 - **BYOK (Bring Your Own Key)** — OpenAI, Anthropic, Gemini API 키를 직접 등록해 사용합니다. API 비용은 직접 부담하고, 키는 AES-256-GCM으로 암호화해 저장됩니다
+- **멀티턴 대화 메모리** — 이전 대화 맥락을 기억하고, "아까 언급한 문서를 요약해줘" 같은 후속 질문이 가능합니다 (LangGraph 기반)
+- **ReAct 에이전트** — 복잡한 질문에 대해 AI가 스스로 추가 검색을 판단하고 실행합니다. 도구 호출 과정을 실시간으로 확인할 수 있습니다
 - **실시간 스트리밍** — 채팅 응답과 임베딩 진행 상황 모두 SSE로 실시간 표시됩니다
 - **공개 데모 페이지** — 회원가입 없이 바로 체험할 수 있는 플로팅 챗봇 위젯. IP당 분당 10회 요청 제한. `demo.com.it`에서 별도 도메인으로 운영 가능
 
@@ -96,7 +98,7 @@ comit/
 │           ├── components/   # 공통 UI 컴포넌트
 │           ├── hooks/        # useDemoChat, useStreamChat
 │           ├── lib/          # API 클라이언트
-│           ├── middleware.ts # demo.com.it 도메인 라우팅
+│           ├── proxy.ts      # demo.com.it 도메인 라우팅
 │           └── store/        # Zustand 인증 스토어
 ├── packages/
 │   └── shared/       # 공유 TypeScript 타입
