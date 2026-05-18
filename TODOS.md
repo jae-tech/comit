@@ -2,7 +2,7 @@
 
 ## Security / Reliability (from /ship adversarial review 2026-05-14)
 
-- [ ] **authFetch 리프레시 경쟁 조건 (P1)** — `apps/web/src/lib/api.ts`의 `authFetch()`와 axios 인터셉터가 각자 독립적인 `isRefreshing` 플래그를 가짐. SSE 스트림 개시 타이밍에 두 경로가 동시에 401을 받으면 두 번째 리프레시 시도가 이미 무효화된 토큰을 사용 → 강제 로그아웃. 수정: `isRefreshing` 플래그와 `refreshPromise`를 모듈 스코프에서 axios 인터셉터와 `authFetch` 사이에 공유.
+- [x] **authFetch 리프레시 경쟁 조건 (P1)** — `apps/web/src/lib/api.ts`의 `authFetch()`와 axios 인터셉터가 각자 독립적인 `isRefreshing` 플래그를 가짐. SSE 스트림 개시 타이밍에 두 경로가 동시에 401을 받으면 두 번째 리프레시 시도가 이미 무효화된 토큰을 사용 → 강제 로그아웃. 수정: `isRefreshing` 플래그와 `refreshPromise`를 모듈 스코프에서 axios 인터셉터와 `authFetch` 사이에 공유.
 
 - [ ] **Gemini batchEmbedContents 배치 크기 제한** — `embedding.processor.ts`의 `embedChunks`가 모든 청크를 단일 요청으로 전송. Gemini API 최대 100개 제한 초과 시 400 에러. 수정: 100개 단위로 청크 분할 후 순차/병렬 배치 전송.
 
