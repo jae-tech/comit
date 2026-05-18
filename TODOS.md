@@ -38,7 +38,7 @@
 
 ## Zod 마이그레이션 후속 (from /plan-eng-review 2026-05-15)
 
-- [ ] **프론트엔드 폼 검증 zodResolver 연동 (P3)** — shared에 Zod 스키마 생기면 로그인/회원가입 폼에 `react-hook-form + @hookform/resolvers/zod`로 동일 규칙 재사용. 현재 @comit/web에 react-hook-form 없음. Effort: XS (CC+gstack). **Depends on:** Zod 전환 완료. Where: `apps/web/src/app/login/`, `apps/web/src/app/register/`.
+- [x] **프론트엔드 폼 검증 zodResolver 연동 (P3)** — shared에 Zod 스키마 생기면 로그인/회원가입 폼에 `react-hook-form + @hookform/resolvers/zod`로 동일 규칙 재사용. 현재 @comit/web에 react-hook-form 없음. Effort: XS (CC+gstack). **Depends on:** Zod 전환 완료. Where: `apps/web/src/app/login/`, `apps/web/src/app/register/`.
 
 ## LangGraph 통합 (from /plan-ceo-review 2026-05-18)
 
