@@ -39,3 +39,47 @@
 ## Zod 마이그레이션 후속 (from /plan-eng-review 2026-05-15)
 
 - [ ] **프론트엔드 폼 검증 zodResolver 연동 (P3)** — shared에 Zod 스키마 생기면 로그인/회원가입 폼에 `react-hook-form + @hookform/resolvers/zod`로 동일 규칙 재사용. 현재 @comit/web에 react-hook-form 없음. Effort: XS (CC+gstack). **Depends on:** Zod 전환 완료. Where: `apps/web/src/app/login/`, `apps/web/src/app/register/`.
+
+## LangGraph 통합 (from /plan-ceo-review 2026-05-18)
+
+설계 방향: 기존 `chat.service.ts` RAG 파이프라인은 유지. LangGraph StateGraph로 신규 기능만 추가. 안정화 후 기존 `/chat/query` 대체.
+
+패키지: `pnpm --filter @comit/api add @langchain/langgraph @langchain/core @langchain/openai @langchain/google-genai`
+
+파일 레이아웃:
+```
+apps/api/src/chat/graph/
+├── rag.graph.ts                     ← StateGraph 정의 (RagState 인터페이스)
+├── nodes/
+│   ├── query-rewrite.node.ts        ← Phase 1: 쿼리 재작성
+│   ├── retrieve.node.ts             ← Phase 1: pgvector 검색 (기존 retrieveContext 재사용)
+│   ├── load-history.node.ts         ← Phase 1: DB에서 chat_messages 히스토리 로드
+│   └── generate.node.ts             ← Phase 1+2: LLM 생성 (ReAct 루프 포함)
+└── tools/
+    └── document-search.tool.ts      ← Phase 2: Tool Calling용 래퍼
+```
+
+RagState 인터페이스:
+```typescript
+interface RagState {
+  workspaceId: string; sessionId: string; userId: string;
+  originalQuestion: string;
+  rewrittenQuery: string;     // Phase 1C
+  citations: Citation[];
+  history: BaseMessage[];     // Phase 1A: 최근 10개 메시지
+  fullContent: string;
+  inputTokens: number | null; outputTokens: number | null;
+  aborted: boolean;
+}
+```
+
+SSE 중간 상태 추가 (`packages/shared/src/chat.types.ts`):
+```typescript
+| { type: 'thinking'; step: 'query_rewrite' | 'retrieve' | 'tool_call'; detail?: string }
+```
+
+- [ ] **Phase 1A — 다중 턴 대화 메모리 (P1)** — `load-history.node.ts`에서 `chat_messages` 테이블 최근 10개를 LangChain `HumanMessage`/`AIMessage`로 변환 후 LLM 호출 시 주입. 사용자는 "아까 언급한 문서를 요약해줘" 같은 후속 질문이 가능해짐. 토큰 예산: 평균 메시지 150 토큰 × 10개 = ~1500 토큰 추가. `messages` 배열 길이 제한 로직 포함. Effort: M (human) / XS (CC+gstack). Where: `apps/api/src/chat/graph/nodes/load-history.node.ts`, `apps/api/src/chat/graph/rag.graph.ts`, `apps/api/src/chat/chat.service.ts`.
+
+- [ ] **Phase 1C — Query Rewriting / 지시어 해소 (P1)** — `query-rewrite.node.ts`에서 대화 히스토리를 바탕으로 "아까 언급한 도큐먼트" 같은 지시어를 구체적인 검색 쿼리로 재작성. HyDE(가상 답변 생성 후 임베딩) 또는 query expansion 중 선택. pgvector recall 개선 효과 측정 방법: 동일 질문셋에 대해 before/after 유사도 점수 비교. Effort: M (human) / S (CC+gstack). **Depends on:** Phase 1A. Where: `apps/api/src/chat/graph/nodes/query-rewrite.node.ts`.
+
+- [ ] **Phase 2B — Tool Calling + ReAct 에이전트 (P2)** — `generate.node.ts`에 ReAct 루프 추가 (최대 3 iterations). LLM이 답변 전 "더 검색 필요" 판단 시 `document-search.tool.ts`를 호출해 추가 컨텍스트 수집 후 재시도. SSE로 중간 단계(`thinking` 청크) 노출. BYOK 제약: tool calling 지원 모델 확인 필요 (gpt-4o/4o-mini: 지원, gemini-2.5: 지원, claude-3: 지원). 신규 엔드포인트 `/chat/query/v2`로 분리 후 안정화 시 기존 대체. Effort: L (human) / M (CC+gstack). **Depends on:** Phase 1A, 1C. Where: `apps/api/src/chat/graph/nodes/generate.node.ts`, `apps/api/src/chat/graph/tools/document-search.tool.ts`, `apps/api/src/chat/chat.controller.ts`.
