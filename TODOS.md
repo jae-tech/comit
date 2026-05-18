@@ -6,11 +6,11 @@
 
 - [x] **Gemini batchEmbedContents 배치 크기 제한** — `embedding.processor.ts`의 `embedChunks`가 모든 청크를 단일 요청으로 전송. Gemini API 최대 100개 제한 초과 시 400 에러. 수정: 100개 단위로 청크 분할 후 순차/병렬 배치 전송.
 
-- [ ] **DemoThrottlerGuard IP 스푸핑** — `getTracker()`가 `X-Forwarded-For` 헤더를 그대로 신뢰. 공격자가 헤더를 위조해 제한 우회 가능. 수정: Fastify `trustProxy` 설정으로 신뢰 가능한 프록시 홉 수 지정.
+- [x] **DemoThrottlerGuard IP 스푸핑** — `getTracker()`가 `X-Forwarded-For` 헤더를 그대로 신뢰. 공격자가 헤더를 위조해 제한 우회 가능. 수정: Fastify `trustProxy` 설정으로 신뢰 가능한 프록시 홉 수 지정.
 
-- [ ] **middleware.ts 데모 도메인 루트 누락** — `demo.com.it/`(루트)는 `/demo/*` 리라이트 규칙에 매칭되지 않아 404. 수정: `pathname === '/'` 조건을 데모 도메인 리라이트에 추가.
+- [x] **middleware.ts 데모 도메인 루트 누락** — `demo.com.it/`(루트)는 `/demo/*` 리라이트 규칙에 매칭되지 않아 404. 수정: `pathname === '/'` 조건을 데모 도메인 리라이트에 추가.
 
-- [ ] **DEMO_ENABLED=false 미적용** — `demo.controller.ts`에 `DEMO_ENABLED` 환경변수 실제 적용 로직 확인 및 전 엔드포인트 503 반환 보장.
+- [x] **DEMO_ENABLED=false 미적용** — `demo.controller.ts`에 `DEMO_ENABLED` 환경변수 실제 적용 로직 확인 및 전 엔드포인트 503 반환 보장.
 
 ## Demo Pages (from /plan-ceo-review 2026-05-14)
 
