@@ -67,6 +67,7 @@ export function buildRagGraph(deps: RagGraphDeps, subject: Subject<MessageEvent>
         model: deps.model,
         systemPrompt: deps.systemPrompt,
         isQuotaError: deps.isQuotaError,
+        retrieveContext: deps.retrieveContext,
       }),
     )
     .addEdge('__start__', 'load_history')
