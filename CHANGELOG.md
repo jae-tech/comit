@@ -2,7 +2,7 @@
 
 All notable changes to this project will be documented in this file.
 
-## [Unreleased] - 2026-05-18
+## [0.0.4] - 2026-05-19
 
 ### Added
 - **LangGraph ReAct 에이전트** — 복잡한 질문에 AI가 추가 검색을 스스로 결정하고 실행하는 ReAct 루프 통합 (최대 3회 반복). 도구 호출 과정을 `thinking` SSE 청크로 실시간 확인 가능
@@ -11,6 +11,9 @@ All notable changes to this project will be documented in this file.
 - **ReAct 사고 과정 시각화** — 채팅 UI에서 AI가 추가 검색 중일 때 `Search` 아이콘 + "검색 중: {쿼리}" 인디케이터 표시
 
 ### Fixed
+- **채팅 세션-워크스페이스 소유권 검증** — 기존 세션 재사용 시 `workspaceId`를 검증하지 않아 자신의 세션 ID로 타인 워크스페이스 문서를 검색할 수 있던 인가 취약점 수정
+- **PATCH /workspaces/:id name 필드 미적용** — `UpdateWorkspaceSchema`에 `name` 필드가 없어 워크스페이스 이름 변경 요청이 무시되던 버그 수정
+- **TypeScript 타입 안전성** — `chat.service.ts`에서 `.bind(this)` → 화살표 함수 래퍼로 교체해 `@typescript-eslint/no-unsafe-assignment` 해소
 - **authFetch 리프레시 경쟁 조건** — SSE 스트림과 일반 API 요청이 동시에 401을 받을 때 두 번째 리프레시가 이미 무효화된 토큰을 사용하는 문제. `isRefreshing: boolean` → `refreshPromise: Promise<string> | null` 공유 방식으로 해결
 - **Gemini 임베딩 배치 제한** — `embedding.processor.ts`가 100개 초과 청크를 단일 요청으로 전송해 400 에러 발생. 100개 단위 배치 분할 처리로 수정
 - **DemoThrottlerGuard IP 스푸핑** — `X-Forwarded-For` 헤더를 직접 신뢰하던 방식에서 Fastify `req.ips[0]` (trustProxy 검증 후 실제 클라이언트 IP)를 사용하도록 수정

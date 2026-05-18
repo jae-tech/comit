@@ -55,6 +55,7 @@ export class WorkspacesService {
     await this.findOne(id, userId); // 403/404
 
     const patch: Partial<Workspace> = {};
+    if (dto.name !== undefined) patch.name = dto.name;
     if (dto.personaName !== undefined)
       patch.personaName = dto.personaName || null;
     if (dto.systemPrompt !== undefined)

@@ -33,7 +33,10 @@ export async function queryRewriteNode(
   } as MessageEvent);
 
   const historyText = state.history
-    .map((m) => `${m._getType() === 'human' ? 'User' : 'Assistant'}: ${(m as { content: string }).content}`)
+    .map(
+      (m) =>
+        `${m._getType() === 'human' ? 'User' : 'Assistant'}: ${(m as { content: string }).content}`,
+    )
     .join('\n');
 
   const prompt = `Conversation history:\n${historyText}\n\nLatest question: ${state.originalQuestion}`;

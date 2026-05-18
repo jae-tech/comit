@@ -82,4 +82,8 @@ SSE 중간 상태 추가 (`packages/shared/src/chat.types.ts`):
 
 - [x] **Phase 1C — Query Rewriting / 지시어 해소 (P1)** — `query-rewrite.node.ts`에서 대화 히스토리를 바탕으로 "아까 언급한 도큐먼트" 같은 지시어를 구체적인 검색 쿼리로 재작성. HyDE(가상 답변 생성 후 임베딩) 또는 query expansion 중 선택. pgvector recall 개선 효과 측정 방법: 동일 질문셋에 대해 before/after 유사도 점수 비교. Effort: M (human) / S (CC+gstack). **Depends on:** Phase 1A. Where: `apps/api/src/chat/graph/nodes/query-rewrite.node.ts`.
 
+## Security (from /ship adversarial review 2026-05-19)
+
+- [x] **채팅 세션-워크스페이스 소유권 검증 누락 (P1)** — `chat.service.ts:processQuery()`에서 기존 세션 조회 시 `sessionId + userId`만 검증하고 `session.workspaceId === dto.workspaceId`를 검증하지 않음. 공격자가 자신의 유효한 세션 ID + 타인의 workspaceId를 조합해 워크스페이스 레벨 인가 우회 가능 → 타인 워크스페이스 문서 검색 허용. 수정: `chatSessions` 조회 WHERE 절에 `eq(chatSessions.workspaceId, dto.workspaceId)` 추가. Where: `apps/api/src/chat/chat.service.ts:91`.
+
 - [x] **Phase 2B — Tool Calling + ReAct 에이전트 (P2)** — `generate.node.ts`에 ReAct 루프 추가 (최대 3 iterations). LLM이 답변 전 "더 검색 필요" 판단 시 `document-search.tool.ts`를 호출해 추가 컨텍스트 수집 후 재시도. SSE로 중간 단계(`thinking` 청크) 노출. OpenAI function calling (streaming fragmented args concat) + Gemini FunctionDeclaration (functionResponse → user role). citations accumulate + chunkId dedup. 기존 `POST /chat/query` 엔드포인트에 직접 통합. Effort: L (human) / M (CC+gstack). Where: `apps/api/src/chat/graph/nodes/generate.node.ts`, `apps/api/src/chat/graph/tools/document-search.tool.ts`.

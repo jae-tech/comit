@@ -50,18 +50,29 @@ export class ChatService {
     dto: ChatQueryDto,
     subject: Subject<MessageEvent>,
   ): Promise<void> {
-    const workspace = await this.workspacesService.findOne(dto.workspaceId, userId);
+    const workspace = await this.workspacesService.findOne(
+      dto.workspaceId,
+      userId,
+    );
     const systemPrompt = workspace.systemPrompt || DEFAULT_SYSTEM_PROMPT;
 
     const creds = workspace.activeProviderId
-      ? await this.providersService.getDecryptedKeyById(userId, workspace.activeProviderId)
+      ? await this.providersService.getDecryptedKeyById(
+          userId,
+          workspace.activeProviderId,
+        )
       : await this.providersService.getDecryptedKey(userId);
     if (!creds) throw new NotFoundException('AI provider not configured');
 
     const [{ count }] = await this.drizzle.db
       .select({ count: sql<number>`COUNT(*)::int` })
       .from(documents)
-      .where(and(eq(documents.workspaceId, dto.workspaceId), eq(documents.status, 'ready')));
+      .where(
+        and(
+          eq(documents.workspaceId, dto.workspaceId),
+          eq(documents.status, 'ready'),
+        ),
+      );
 
     if (count === 0) {
       subject.next({
@@ -80,7 +91,13 @@ export class ChatService {
       const [found] = await this.drizzle.db
         .select()
         .from(chatSessions)
-        .where(and(eq(chatSessions.id, dto.sessionId), eq(chatSessions.userId, userId)))
+        .where(
+          and(
+            eq(chatSessions.id, dto.sessionId),
+            eq(chatSessions.userId, userId),
+            eq(chatSessions.workspaceId, dto.workspaceId),
+          ),
+        )
         .limit(1);
       if (!found) throw new NotFoundException('Session not found');
       session = found;
@@ -91,7 +108,10 @@ export class ChatService {
         .returning();
       session = created;
       subject.next({
-        data: JSON.stringify({ type: 'session_created', sessionId: session.id }),
+        data: JSON.stringify({
+          type: 'session_created',
+          sessionId: session.id,
+        }),
       } as MessageEvent);
     }
 
@@ -105,8 +125,8 @@ export class ChatService {
     const compiledGraph = buildRagGraph(
       {
         drizzle: this.drizzle,
-        retrieveContext: this.retrieveContext.bind(this),
-        isQuotaError: this.isQuotaError.bind(this),
+        retrieveContext: (w, q, k, p) => this.retrieveContext(w, q, k, p),
+        isQuotaError: (e) => this.isQuotaError(e),
         apiKey: creds.apiKey,
         provider: creds.provider,
         model: creds.model,
@@ -172,7 +192,10 @@ export class ChatService {
       const url = `https://generativelanguage.googleapis.com/v1beta/models/gemini-embedding-001:embedContent`;
       const res = await fetch(url, {
         method: 'POST',
-        headers: { 'Content-Type': 'application/json', 'x-goog-api-key': apiKey },
+        headers: {
+          'Content-Type': 'application/json',
+          'x-goog-api-key': apiKey,
+        },
         body: JSON.stringify({
           model: 'models/gemini-embedding-001',
           content: { role: 'user', parts: [{ text: question }] },
@@ -182,7 +205,9 @@ export class ChatService {
       });
       if (!res.ok) {
         const errText = await res.text();
-        throw new Error(`Gemini embedContent failed [${res.status}]: ${errText}`);
+        throw new Error(
+          `Gemini embedContent failed [${res.status}]: ${errText}`,
+        );
       }
       const data = (await res.json()) as { embedding: { values: number[] } };
       queryVector = data.embedding.values;
@@ -241,19 +266,29 @@ export class ChatService {
       .where(eq(chatSessions.id, sessionId));
   }
 
-  async getSessions(workspaceId: string, userId: string): Promise<ChatSession[]> {
+  async getSessions(
+    workspaceId: string,
+    userId: string,
+  ): Promise<ChatSession[]> {
     await this.workspacesService.findOne(workspaceId, userId);
     return this.drizzle.db
       .select()
       .from(chatSessions)
-      .where(and(eq(chatSessions.workspaceId, workspaceId), eq(chatSessions.userId, userId)));
+      .where(
+        and(
+          eq(chatSessions.workspaceId, workspaceId),
+          eq(chatSessions.userId, userId),
+        ),
+      );
   }
 
   async getMessages(sessionId: string, userId: string): Promise<ChatMessage[]> {
     const [session] = await this.drizzle.db
       .select()
       .from(chatSessions)
-      .where(and(eq(chatSessions.id, sessionId), eq(chatSessions.userId, userId)))
+      .where(
+        and(eq(chatSessions.id, sessionId), eq(chatSessions.userId, userId)),
+      )
       .limit(1);
 
     if (!session) throw new NotFoundException('Session not found');
