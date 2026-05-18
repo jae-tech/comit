@@ -152,33 +152,39 @@ export class EmbeddingProcessor {
       };
     }
 
-    // SDK는 outputDimensionality를 지원하지 않으므로 REST 직접 호출
-    // Gemini batchEmbedContents는 tokenCount를 반환하지 않으므로 null 저장
+    // SDK는 outputDimensionality를 지원하지 않으므로 REST 직접 호출.
+    // Gemini batchEmbedContents는 요청당 최대 100개 제한이 있으므로 분할 전송한다.
+    // tokenCount를 반환하지 않으므로 embeddingTokens는 null.
+    const GEMINI_BATCH_LIMIT = 100;
     const url = `${GEMINI_API_BASE}/models/${GEMINI_EMBEDDING_MODEL}:batchEmbedContents`;
-    const body = {
-      requests: chunks.map((text) => ({
-        model: `models/${GEMINI_EMBEDDING_MODEL}`,
-        content: { role: 'user', parts: [{ text }] },
-        taskType: 'RETRIEVAL_DOCUMENT',
-        outputDimensionality: EMBEDDING_DIM,
-      })),
-    };
-    const res = await fetch(url, {
-      method: 'POST',
-      headers: { 'Content-Type': 'application/json', 'x-goog-api-key': apiKey },
-      body: JSON.stringify(body),
-    });
-    if (!res.ok) {
-      const errText = await res.text();
-      throw new Error(
-        `Gemini batchEmbedContents failed [${res.status}]: ${errText}`,
-      );
+    const allVectors: number[][] = [];
+
+    for (let i = 0; i < chunks.length; i += GEMINI_BATCH_LIMIT) {
+      const batch = chunks.slice(i, i + GEMINI_BATCH_LIMIT);
+      const body = {
+        requests: batch.map((text) => ({
+          model: `models/${GEMINI_EMBEDDING_MODEL}`,
+          content: { role: 'user', parts: [{ text }] },
+          taskType: 'RETRIEVAL_DOCUMENT',
+          outputDimensionality: EMBEDDING_DIM,
+        })),
+      };
+      const res = await fetch(url, {
+        method: 'POST',
+        headers: { 'Content-Type': 'application/json', 'x-goog-api-key': apiKey },
+        body: JSON.stringify(body),
+      });
+      if (!res.ok) {
+        const errText = await res.text();
+        throw new Error(
+          `Gemini batchEmbedContents failed [${res.status}]: ${errText}`,
+        );
+      }
+      const data = (await res.json()) as { embeddings: { values: number[] }[] };
+      allVectors.push(...data.embeddings.map((e) => e.values));
     }
-    const data = (await res.json()) as { embeddings: { values: number[] }[] };
-    return {
-      vectors: data.embeddings.map((e) => e.values),
-      embeddingTokens: null,
-    };
+
+    return { vectors: allVectors, embeddingTokens: null };
   }
 
   private async deleteFile(filePath: string): Promise<void> {
