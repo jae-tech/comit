@@ -16,13 +16,16 @@ export interface Message {
   role: 'user' | 'assistant';
   content: string;
   citations: Citation[];
+  thinkingStep?: string;
 }
 
 interface StreamChunk {
-  type: 'token' | 'done' | 'error' | 'quota_exceeded';
+  type: 'token' | 'done' | 'error' | 'quota_exceeded' | 'thinking';
   content?: string;
   citations?: Citation[];
   error?: string;
+  step?: string;
+  detail?: string;
 }
 
 interface UseStreamChatOptions {
@@ -94,16 +97,28 @@ export function useStreamChat({
 
           const chunk: StreamChunk = JSON.parse(raw);
 
-          if (chunk.type === 'token' && chunk.content) {
+          if (chunk.type === 'thinking') {
             setMessages((prev) =>
               prev.map((m) =>
-                m.id === assistantId ? { ...m, content: m.content + chunk.content } : m,
+                m.id === assistantId
+                  ? { ...m, thinkingStep: chunk.detail || chunk.step || '검색 중' }
+                  : m,
+              ),
+            );
+          } else if (chunk.type === 'token' && chunk.content) {
+            setMessages((prev) =>
+              prev.map((m) =>
+                m.id === assistantId
+                  ? { ...m, content: m.content + chunk.content, thinkingStep: undefined }
+                  : m,
               ),
             );
           } else if (chunk.type === 'done') {
             setMessages((prev) =>
               prev.map((m) =>
-                m.id === assistantId ? { ...m, citations: chunk.citations ?? [] } : m,
+                m.id === assistantId
+                  ? { ...m, citations: chunk.citations ?? [], thinkingStep: undefined }
+                  : m,
               ),
             );
             if (onSessionsRefresh) {

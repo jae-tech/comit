@@ -17,7 +17,7 @@ import {
   SheetTitle,
   SheetDescription,
 } from '@/components/ui/sheet';
-import { Send, FileText, Loader2, Settings, MessageSquare, Plus, Clock, CheckCircle, XCircle, Trash2 } from 'lucide-react';
+import { Send, FileText, Loader2, Settings, MessageSquare, Plus, Clock, CheckCircle, XCircle, Trash2, Search } from 'lucide-react';
 import { useStreamChat, type Citation } from '@/hooks/useStreamChat';
 
 interface Session {
@@ -245,6 +245,13 @@ function ChatPage() {
                   ) : msg.content ? (
                     <div className="chat-prose">
                       <ReactMarkdown>{msg.content}</ReactMarkdown>
+                    </div>
+                  ) : msg.thinkingStep ? (
+                    <div className="flex items-center gap-2 text-stone-400">
+                      <Search className="h-3.5 w-3.5 animate-pulse" />
+                      <span className="text-xs truncate max-w-[240px]">
+                        검색 중: {msg.thinkingStep}
+                      </span>
                     </div>
                   ) : (
                     <div className="flex items-center gap-2 text-stone-400">
