@@ -15,7 +15,9 @@ api.interceptors.request.use((config) => {
 });
 
 // 401 → refresh token으로 갱신 시도 → 실패하면 로그아웃
-let isRefreshing = false;
+// axios 인터셉터와 authFetch가 공유하는 단일 리프레시 상태 —
+// 두 경로가 동시에 401을 받아도 리프레시는 한 번만 실행된다.
+let refreshPromise: Promise<string> | null = null;
 let refreshQueue: Array<(token: string) => void> = [];
 
 api.interceptors.response.use(
@@ -38,8 +40,8 @@ api.interceptors.response.use(
       return Promise.reject(err);
     }
 
-    // 이미 갱신 중이면 대기열에 쌓음
-    if (isRefreshing) {
+    // 이미 갱신 중이면 같은 Promise를 기다림 (대기열 fallback 포함)
+    if (refreshPromise) {
       return new Promise((resolve, reject) => {
         refreshQueue.push((newToken) => {
           err.config.headers.Authorization = `Bearer ${newToken}`;
@@ -50,29 +52,32 @@ api.interceptors.response.use(
       });
     }
 
-    isRefreshing = true;
     err.config._retry = true;
+    refreshPromise = api
+      .post<{ accessToken: string; refreshToken: string }>('/auth/refresh', { refreshToken })
+      .then((res) => {
+        const { accessToken: newAccess, refreshToken: newRefresh } = res.data;
+        setTokens(newAccess, newRefresh);
+        refreshQueue.forEach((cb) => cb(newAccess));
+        refreshQueue = [];
+        return newAccess;
+      })
+      .catch((e) => {
+        refreshQueue = [];
+        clear();
+        window.location.href = '/login';
+        throw e;
+      })
+      .finally(() => {
+        refreshPromise = null;
+      });
+
     try {
-      const res = await api.post<{ accessToken: string; refreshToken: string }>(
-        '/auth/refresh',
-        { refreshToken },
-      );
-      const { accessToken: newAccess, refreshToken: newRefresh } = res.data;
-      setTokens(newAccess, newRefresh);
-
-      // 대기 중인 요청 모두 새 토큰으로 재시도
-      refreshQueue.forEach((cb) => cb(newAccess));
-      refreshQueue = [];
-
+      const newAccess = await refreshPromise;
       err.config.headers.Authorization = `Bearer ${newAccess}`;
       return api(err.config);
     } catch {
-      refreshQueue = [];
-      clear();
-      window.location.href = '/login';
       return Promise.reject(err);
-    } finally {
-      isRefreshing = false;
     }
   },
 );
@@ -99,20 +104,34 @@ export async function authFetch(url: string, init?: RequestInit): Promise<Respon
   }
 
   try {
-    const refreshRes = await api.post<{ accessToken: string; refreshToken: string }>(
-      '/auth/refresh',
-      { refreshToken },
-    );
-    const { accessToken: newAccess, refreshToken: newRefresh } = refreshRes.data;
-    setTokens(newAccess, newRefresh);
+    // axios 인터셉터와 동일한 refreshPromise를 재사용 — 중복 리프레시 방지
+    if (!refreshPromise) {
+      refreshPromise = api
+        .post<{ accessToken: string; refreshToken: string }>('/auth/refresh', { refreshToken })
+        .then((r) => {
+          const { accessToken: newAccess, refreshToken: newRefresh } = r.data;
+          setTokens(newAccess, newRefresh);
+          refreshQueue.forEach((cb) => cb(newAccess));
+          refreshQueue = [];
+          return newAccess;
+        })
+        .catch((e) => {
+          refreshQueue = [];
+          clear();
+          window.location.href = '/login';
+          throw e;
+        })
+        .finally(() => {
+          refreshPromise = null;
+        });
+    }
 
+    const newAccess = await refreshPromise;
     const retryHeaders = new Headers(init?.headers);
     retryHeaders.set('Authorization', `Bearer ${newAccess}`);
     return fetch(url, { ...init, headers: retryHeaders });
   } catch {
     console.warn('[authFetch] token refresh failed — redirecting to /login');
-    clear();
-    window.location.href = '/login';
     return res;
   }
 }
