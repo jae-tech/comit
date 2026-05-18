@@ -14,7 +14,8 @@ export type ChatStreamChunk =
   | { type: 'done'; citations: Citation[] }
   | { type: 'error'; error: string }
   | { type: 'quota_exceeded'; error?: string }
-  | { type: 'session_created'; sessionId: string };
+  | { type: 'session_created'; sessionId: string }
+  | { type: 'thinking'; step: 'query_rewrite' | 'retrieve' | 'tool_call'; detail?: string };
 
 export interface ChatMessage {
   id: string;
