@@ -106,6 +106,18 @@ comit/
 └── docker-compose.yml
 ```
 
+## 프로덕션 배포
+
+프론트엔드(Vercel)와 백엔드(Docker)를 분리 배포하는 방법은 [DEPLOY.md](./DEPLOY.md)를 참고하세요.
+
+```bash
+# 첫 배포 시 초기화 스크립트 실행
+chmod +x setup.sh && ./setup.sh
+
+# 서비스 시작 (Nginx 포함)
+docker compose --profile prod up -d
+```
+
 ## 주요 명령어
 
 ```bash
