@@ -95,6 +95,7 @@ export class ChatService {
           and(
             eq(chatSessions.id, dto.sessionId),
             eq(chatSessions.userId, userId),
+            eq(chatSessions.workspaceId, dto.workspaceId),
           ),
         )
         .limit(1);
