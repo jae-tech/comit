@@ -1,5 +1,5 @@
 import { z } from 'zod';
-import type { Citation } from './document.types.js';
+import type { Citation } from './document.types';
 
 export const ChatQuerySchema = z.object({
   workspaceId: z.string().uuid(),
