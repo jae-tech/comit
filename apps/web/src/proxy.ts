@@ -28,5 +28,6 @@ export function proxy(req: NextRequest) {
 }
 
 export const config = {
-  matcher: ['/demo/:path*'],
+  // '/' 포함: 데모 도메인 루트가 /demo로 리라이트되려면 루트도 매칭해야 함
+  matcher: ['/', '/demo/:path*'],
 };

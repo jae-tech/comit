@@ -34,6 +34,12 @@ export class DemoService implements OnApplicationBootstrap {
   }
 
   async onApplicationBootstrap(): Promise<void> {
+    const demoEnabled = this.config.get<string>('DEMO_ENABLED');
+    if (demoEnabled?.toLowerCase() === 'false') {
+      this.logger.log('DEMO_ENABLED=false — demo endpoints disabled');
+      return;
+    }
+
     if (!this.workspaceId || !this.userId) {
       this.logger.warn(
         'DEMO_WORKSPACE_ID or DEMO_USER_ID not set — demo endpoints disabled',
