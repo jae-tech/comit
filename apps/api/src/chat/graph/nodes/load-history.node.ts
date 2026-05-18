@@ -20,11 +20,7 @@ export async function loadHistoryNode(
       content: chatMessages.content,
     })
     .from(chatMessages)
-    .where(
-      and(
-        eq(chatMessages.sessionId, state.sessionId),
-      ),
-    )
+    .where(and(eq(chatMessages.sessionId, state.sessionId)))
     .orderBy(desc(chatMessages.createdAt))
     .limit(HISTORY_LIMIT);
 

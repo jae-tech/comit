@@ -24,9 +24,14 @@ export interface RagGraphDeps {
   systemPrompt: string;
 }
 
-export function buildRagGraph(deps: RagGraphDeps, subject: Subject<MessageEvent>) {
+export function buildRagGraph(
+  deps: RagGraphDeps,
+  subject: Subject<MessageEvent>,
+) {
   // 쿼리 재작성에 사용할 경량 LLM 호출 (히스토리 없이 짧은 시스템+유저 메시지만)
-  async function callRewriteLlm(messages: Array<HumanMessage | SystemMessage>): Promise<string> {
+  async function callRewriteLlm(
+    messages: Array<HumanMessage | SystemMessage>,
+  ): Promise<string> {
     if (deps.provider === 'gemini') {
       const { GoogleGenerativeAI } = await import('@google/generative-ai');
       const genai = new GoogleGenerativeAI(deps.apiKey);
@@ -34,9 +39,13 @@ export function buildRagGraph(deps: RagGraphDeps, subject: Subject<MessageEvent>
       const userMsg = messages.find((m) => m._getType() === 'human');
       const model = genai.getGenerativeModel({
         model: 'gemini-2.5-flash',
-        systemInstruction: systemMsg ? (systemMsg as { content: string }).content : undefined,
+        systemInstruction: systemMsg
+          ? (systemMsg as { content: string }).content
+          : undefined,
       });
-      const result = await model.generateContent((userMsg as { content: string }).content);
+      const result = await model.generateContent(
+        (userMsg as { content: string }).content,
+      );
       return result.response.text();
     } else {
       const { default: OpenAI } = await import('openai');
@@ -55,10 +64,20 @@ export function buildRagGraph(deps: RagGraphDeps, subject: Subject<MessageEvent>
   }
 
   const graph = new StateGraph<RagState>({ channels: ragStateChannels })
-    .addNode('load_history', async (state) => loadHistoryNode(state, deps.drizzle))
-    .addNode('query_rewrite', async (state) => queryRewriteNode(state, subject, callRewriteLlm))
+    .addNode('load_history', async (state) =>
+      loadHistoryNode(state, deps.drizzle),
+    )
+    .addNode('query_rewrite', async (state) =>
+      queryRewriteNode(state, subject, callRewriteLlm),
+    )
     .addNode('retrieve', async (state) =>
-      retrieveNode(state, subject, deps.retrieveContext, deps.apiKey, deps.provider),
+      retrieveNode(
+        state,
+        subject,
+        deps.retrieveContext,
+        deps.apiKey,
+        deps.provider,
+      ),
     )
     .addNode('generate', async (state) =>
       generateNode(state, subject, {
