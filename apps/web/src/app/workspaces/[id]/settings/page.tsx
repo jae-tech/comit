@@ -3,7 +3,7 @@
 import { useState, useEffect } from 'react';
 import { useParams } from 'next/navigation';
 import { toast } from 'sonner';
-import { useWorkspace, useProviders, useUpdatePersona, useSetActiveProvider } from '@/lib/queries';
+import { useWorkspace, useProviders, useUpdateWorkspace, useSetActiveProvider } from '@/lib/queries';
 import { AuthGuard } from '@/components/auth-guard';
 import { AppHeader, CONTENT_WIDTH } from '@/components/app-header';
 import { Button } from '@/components/ui/button';
@@ -37,9 +37,10 @@ function SettingsPage() {
 
   const { data: workspace, isLoading } = useWorkspace(workspaceId);
   const { data: registeredProviders = [] } = useProviders();
-  const updatePersona = useUpdatePersona();
+  const updateWorkspace = useUpdateWorkspace();
   const setActiveProvider = useSetActiveProvider();
 
+  const [workspaceName, setWorkspaceName] = useState('');
   const [personaName, setPersonaName] = useState('');
   const [systemPrompt, setSystemPrompt] = useState('');
   const [saved, setSaved] = useState(false);
@@ -49,6 +50,7 @@ function SettingsPage() {
   useEffect(() => {
     if (!workspace) return;
     /* eslint-disable react-hooks/set-state-in-effect */
+    setWorkspaceName(workspace.name ?? '');
     setPersonaName(workspace.personaName ?? '');
     setSystemPrompt(workspace.systemPrompt ?? '');
     setActiveProviderId(workspace.activeProviderId ?? null);
@@ -63,8 +65,12 @@ function SettingsPage() {
   }
 
   async function handleSave() {
+    if (!workspaceName.trim()) {
+      toast.error('워크스페이스 이름을 입력해 주세요.');
+      return;
+    }
     try {
-      await updatePersona.mutateAsync({ id: workspaceId, personaName, systemPrompt });
+      await updateWorkspace.mutateAsync({ id: workspaceId, name: workspaceName.trim(), personaName, systemPrompt });
       setSaved(true);
       setTimeout(() => setSaved(false), 2000);
     } catch {
@@ -96,17 +102,30 @@ function SettingsPage() {
         backHref={`/workspaces/${workspaceId}/chat`}
         title="AI 페르소나 설정"
         right={
-          <Button onClick={handleSave} disabled={updatePersona.isPending} size="sm">
+          <Button onClick={handleSave} disabled={updateWorkspace.isPending} size="sm">
             {saved ? (
               <><Check className="h-3.5 w-3.5" />저장됨</>
             ) : (
-              <><Save className="h-3.5 w-3.5" />{updatePersona.isPending ? '저장 중...' : '저장'}</>
+              <><Save className="h-3.5 w-3.5" />{updateWorkspace.isPending ? '저장 중...' : '저장'}</>
             )}
           </Button>
         }
       />
 
       <main className={`${CONTENT_WIDTH} py-8 flex flex-col gap-8`}>
+
+        {/* 워크스페이스 이름 */}
+        <section>
+          <label className="block text-xs font-medium text-stone-500 uppercase tracking-wider mb-2">
+            워크스페이스 이름
+          </label>
+          <Input
+            value={workspaceName}
+            onChange={(e) => { setWorkspaceName(e.target.value); setSaved(false); }}
+            placeholder="워크스페이스 이름"
+            maxLength={100}
+          />
+        </section>
 
         {/* AI 모델 선택 */}
         <section>
