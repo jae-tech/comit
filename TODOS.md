@@ -40,6 +40,18 @@
 
 - [x] **프론트엔드 폼 검증 zodResolver 연동 (P3)** — shared에 Zod 스키마 생기면 로그인/회원가입 폼에 `react-hook-form + @hookform/resolvers/zod`로 동일 규칙 재사용. 현재 @comit/web에 react-hook-form 없음. Effort: XS (CC+gstack). **Depends on:** Zod 전환 완료. Where: `apps/web/src/app/login/`, `apps/web/src/app/register/`.
 
+## LangGraph / RAG 개선 (from /autoplan 2026-05-19)
+
+- [ ] **buildRagGraph 싱글턴화 (P2)** — `chat.service.ts`에서 `buildRagGraph()`가 매 요청마다 `StateGraph.compile()`을 호출. 10rps에서 초당 10회 컴파일. `RagState`에 `apiKey`, `provider`, `model`, `systemPrompt`를 추가하고 그래프 구조를 모듈 초기화 시점에 1회 컴파일하면 해결. Effort: M (human) / S (CC+gstack). Where: `apps/api/src/chat/graph/rag.graph.ts`, `rag-state.ts`, `chat.service.ts`.
+
+- [ ] **document_chunks embedding_model 컬럼 추가 (P1)** — Provider 전환 시 OpenAI/Gemini 임베딩 벡터가 같은 테이블에 혼재 → 검색 품질 조용히 망가짐. `embedding_model varchar` 컬럼 추가 + 워크스페이스 공급자 전환 시 재임베딩 경고 UI 필요. Effort: M (human) / S (CC+gstack). 마이그레이션 필요.
+
+- [x] **ReAct user 메시지 누적 버그 수정 (P2)** — `generate.node.ts:264` OpenAI ReAct 루프에서 tool call 반복마다 user 메시지가 messages 배열에 누적됨. 초기 user 메시지를 교체하는 대신 추가(push)해서 3회 반복 시 user 메시지 4개. 토큰 낭비. Where: `apps/api/src/chat/graph/nodes/generate.node.ts`.
+
+- [ ] **히스토리 문자 수 hard cap 추가 (P2)** — `load-history.node.ts`에서 메시지 10개 제한만 있고 토큰/문자 수 제한 없음. 긴 대화에서 히스토리가 8000+ 토큰이 될 수 있음. 메시지 총 4000자 제한(오래된 것부터 잘라냄) 추가. Where: `apps/api/src/chat/graph/nodes/load-history.node.ts`.
+
+- [ ] **N+1 직렬 청크 INSERT 최적화 (P3)** — `embedding.processor.ts:102` 청크당 1개 INSERT 직렬 루프. 100개 청크 = 100 round-trip. bulk VALUES 또는 `Promise.all` 병렬 처리로 교체. Effort: XS (CC+gstack). Where: `apps/api/src/documents/embedding.processor.ts`.
+
 ## LangGraph 통합 (from /plan-ceo-review 2026-05-18)
 
 설계 방향: 기존 `chat.service.ts` RAG 파이프라인은 유지. LangGraph StateGraph로 신규 기능만 추가. 안정화 후 기존 `/chat/query` 대체.
@@ -47,6 +59,7 @@
 패키지: `pnpm --filter @comit/api add @langchain/langgraph @langchain/core @langchain/openai @langchain/google-genai`
 
 파일 레이아웃:
+
 ```
 apps/api/src/chat/graph/
 ├── rag.graph.ts                     ← StateGraph 정의 (RagState 인터페이스)
@@ -60,20 +73,25 @@ apps/api/src/chat/graph/
 ```
 
 RagState 인터페이스:
+
 ```typescript
 interface RagState {
-  workspaceId: string; sessionId: string; userId: string;
+  workspaceId: string;
+  sessionId: string;
+  userId: string;
   originalQuestion: string;
-  rewrittenQuery: string;     // Phase 1C
+  rewrittenQuery: string; // Phase 1C
   citations: Citation[];
-  history: BaseMessage[];     // Phase 1A: 최근 10개 메시지
+  history: BaseMessage[]; // Phase 1A: 최근 10개 메시지
   fullContent: string;
-  inputTokens: number | null; outputTokens: number | null;
+  inputTokens: number | null;
+  outputTokens: number | null;
   aborted: boolean;
 }
 ```
 
 SSE 중간 상태 추가 (`packages/shared/src/chat.types.ts`):
+
 ```typescript
 | { type: 'thinking'; step: 'query_rewrite' | 'retrieve' | 'tool_call'; detail?: string }
 ```

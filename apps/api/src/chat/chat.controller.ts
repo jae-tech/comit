@@ -10,6 +10,7 @@ import {
   Res,
   HttpCode,
 } from '@nestjs/common';
+import { ConfigService } from '@nestjs/config';
 import { ApiTags, ApiBearerAuth, ApiOperation } from '@nestjs/swagger';
 import type { FastifyReply } from 'fastify';
 import { JwtAuthGuard } from '@/common/guards/jwt-auth.guard';
@@ -22,7 +23,17 @@ import { ChatQueryDto } from './chat.dto';
 @UseGuards(JwtAuthGuard)
 @Controller('chat')
 export class ChatController {
-  constructor(private readonly chatService: ChatService) {}
+  private readonly allowedOrigins: string[];
+
+  constructor(
+    private readonly chatService: ChatService,
+    private readonly configService: ConfigService,
+  ) {
+    this.allowedOrigins = (this.configService.get<string>('FRONTEND_URL') ?? '')
+      .split(',')
+      .map((o) => o.trim())
+      .filter(Boolean);
+  }
 
   /**
    * POST /chat/query
@@ -38,15 +49,18 @@ export class ChatController {
     @Body() dto: ChatQueryDto,
     @Res() reply: FastifyReply,
   ) {
-    const origin =
+    const requestOrigin =
       (reply.request as { headers: Record<string, string> }).headers[
         'origin'
-      ] ?? '*';
+      ] ?? '';
+    const allowedOrigin = this.allowedOrigins.includes(requestOrigin)
+      ? requestOrigin
+      : (this.allowedOrigins[0] ?? '');
     reply.raw.writeHead(200, {
       'Content-Type': 'text/event-stream',
       'Cache-Control': 'no-cache',
       Connection: 'keep-alive',
-      'Access-Control-Allow-Origin': origin,
+      'Access-Control-Allow-Origin': allowedOrigin,
       'Access-Control-Allow-Credentials': 'true',
     });
 
