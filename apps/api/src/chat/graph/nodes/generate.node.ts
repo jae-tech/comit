@@ -261,18 +261,6 @@ async function streamOpenAIReAct(
         messages.push(toolResultMessage);
       }
 
-      // 누적된 context로 user 메시지를 교체
-      const ctx = accumulatedCitations
-        .map((c) => `[${c.filename}]\n${c.excerpt}`)
-        .join('\n\n---\n\n');
-      const updatedUserContent = ctx
-        ? `Context:\n${ctx}\n\nQuestion: ${(initialMessages[initialMessages.length - 1] as { content: string }).content.replace(/^Context:[\s\S]*?Question: /, '')}`
-        : (initialMessages[initialMessages.length - 1] as { content: string })
-            .content;
-
-      // 마지막 user 메시지는 tool call 결과로 대체
-      messages.push({ role: 'user', content: updatedUserContent });
-
       toolCallCount++;
       continue;
     }

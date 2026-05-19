@@ -115,13 +115,6 @@ export class ChatService {
       } as MessageEvent);
     }
 
-    await this.drizzle.db.insert(chatMessages).values({
-      sessionId: session.id,
-      role: 'user',
-      content: dto.question,
-      citations: [],
-    });
-
     const compiledGraph = buildRagGraph(
       {
         drizzle: this.drizzle,
@@ -150,6 +143,15 @@ export class ChatService {
     });
 
     if (result.aborted) return;
+
+    // 그래프가 성공적으로 완료된 후에만 양쪽 메시지를 저장한다.
+    // 이렇게 하면 그래프 실패 시 user 메시지가 고아로 남는 문제를 방지한다.
+    await this.drizzle.db.insert(chatMessages).values({
+      sessionId: session.id,
+      role: 'user',
+      content: dto.question,
+      citations: [],
+    });
 
     subject.next({
       data: JSON.stringify({ type: 'done', citations: result.citations }),
@@ -219,6 +221,12 @@ export class ChatService {
         dimensions: 768,
       });
       queryVector = embResponse.data[0].embedding;
+    }
+
+    if (queryVector.length !== 768) {
+      throw new Error(
+        `임베딩 차원 불일치: 기대 768, 실제 ${queryVector.length}`,
+      );
     }
 
     const rows = await this.drizzle.db.execute(

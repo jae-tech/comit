@@ -2,6 +2,14 @@
 
 All notable changes to this project will be documented in this file.
 
+## [0.0.5] - 2026-05-19
+
+### Fixed
+- **CORS 취약점 수정 (CRITICAL)** — SSE 엔드포인트 `POST /chat/query`가 `Origin` 헤더를 그대로 `Access-Control-Allow-Origin`에 반사하던 문제. `FRONTEND_URL` 환경변수 whitelist와 대조 후 허용된 origin만 반환하도록 수정. 자격증명 탈취 공격 차단
+- **임베딩 차원 불일치 감지** — `retrieveContext()`에서 반환된 벡터가 768차원이 아닐 경우 명시적 오류를 발생시켜 무음 검색 품질 저하 방지
+- **user 메시지 고아 방지** — 그래프 실행 실패 시 user 메시지가 DB에 저장되지 않도록 INSERT 순서 변경 (그래프 완료 후로 이동)
+- **ReAct 루프 user 메시지 중복 제거** — OpenAI ReAct 루프에서 tool call 반복마다 user 메시지가 누적되던 버그 수정. 3회 반복 시 user 메시지 4개 → 올바른 1개
+
 ## [0.0.4] - 2026-05-19
 
 ### Added
