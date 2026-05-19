@@ -89,7 +89,9 @@ async function main() {
         .update(schema.users)
         .set({ passwordHash, role: 'admin' })
         .where(eq(schema.users.id, existing.id));
-      console.log(`✅ Admin account updated: ${ADMIN_USERNAME} (${existing.id})`);
+      console.log(
+        `✅ Admin account updated: ${ADMIN_USERNAME} (${existing.id})`,
+      );
     } else {
       const [user] = await db
         .insert(schema.users)
