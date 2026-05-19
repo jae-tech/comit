@@ -229,7 +229,21 @@ function ChatPage() {
               <div className="w-12 h-12 rounded-xl bg-blue-50 flex items-center justify-center">
                 <MessageSquare className="h-5 w-5 text-blue-400" />
               </div>
-              <p className="text-sm">문서를 업로드한 후 질문해 보세요.</p>
+              {docs.length === 0 ? (
+                <>
+                  <p className="text-sm font-medium text-stone-600">문서를 먼저 업로드해 주세요</p>
+                  <p className="text-xs text-center max-w-xs">AI가 참고할 문서가 없으면 정확한 답변이 어렵습니다.</p>
+                  <button
+                    onClick={() => router.push(`/workspaces/${workspaceId}/documents`)}
+                    className="mt-1 flex items-center gap-1.5 rounded-lg border border-stone-300 bg-white px-4 py-2 text-sm font-medium text-stone-700 hover:border-stone-400 hover:bg-stone-50 transition-colors shadow-sm"
+                  >
+                    <FileText className="h-3.5 w-3.5" />
+                    문서 업로드하러 가기
+                  </button>
+                </>
+              ) : (
+                <p className="text-sm">문서에 대해 질문해 보세요.</p>
+              )}
             </div>
           )}
 
