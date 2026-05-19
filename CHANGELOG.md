@@ -2,6 +2,15 @@
 
 All notable changes to this project will be documented in this file.
 
+## [0.0.7] - 2026-05-19
+
+### Changed
+- **로그인 식별자 email → username 변경** — 이메일 형식 불필요한 클라이언트 전용 서버에서 아이디(username) 방식으로 전환. DB 컬럼, JWT 페이로드, 모든 API 요청/응답 및 UI 레이블 일괄 변경
+- **@hookform/resolvers v5 → v4 다운그레이드** — Zod v3 환경에서 `zod/v4/core` 모듈을 찾지 못해 빌드가 실패하던 문제 해결. v4.x는 Zod v3 호환
+
+### Fixed
+- **auth.schema.spec.ts 테스트** — email 기반 검증 테스트를 username 방식에 맞게 업데이트
+
 ## [0.0.6] - 2026-05-19
 
 ### Added
