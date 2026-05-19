@@ -1,6 +1,5 @@
 'use client';
 
-import { useState, useEffect } from 'react';
 import { useRouter } from 'next/navigation';
 import {
   BarChart,
@@ -11,7 +10,7 @@ import {
   ResponsiveContainer,
   CartesianGrid,
 } from 'recharts';
-import { usageApi, type UsageSummary, type DailyUsage, type SessionUsage } from '@/lib/api';
+import { useUsageSummary, useUsageDaily, useUsageSessions } from '@/lib/queries';
 import { AuthGuard } from '@/components/auth-guard';
 import { AppHeader, CONTENT_WIDTH } from '@/components/app-header';
 import { BarChart2, Zap, DollarSign, Database } from 'lucide-react';
@@ -66,25 +65,11 @@ function SkeletonCard() {
 
 function UsagePage() {
   const router = useRouter();
-  const [summary, setSummary] = useState<UsageSummary | null>(null);
-  const [daily, setDaily] = useState<DailyUsage[]>([]);
-  const [sessions, setSessions] = useState<SessionUsage[]>([]);
-  const [loading, setLoading] = useState(true);
+  const { data: summary, isLoading: summaryLoading } = useUsageSummary();
+  const { data: daily = [], isLoading: dailyLoading } = useUsageDaily(30);
+  const { data: sessions = [], isLoading: sessionsLoading } = useUsageSessions(undefined, 20);
 
-  useEffect(() => {
-    Promise.all([
-      usageApi.summary(),
-      usageApi.daily(30),
-      usageApi.sessions(undefined, 20),
-    ])
-      .then(([s, d, sess]) => {
-        setSummary(s.data);
-        setDaily(d.data);
-        setSessions(sess.data);
-      })
-      .finally(() => setLoading(false));
-  }, []);
-
+  const loading = summaryLoading || dailyLoading || sessionsLoading;
   const totalTokens = summary
     ? summary.totalInputTokens + summary.totalOutputTokens
     : 0;

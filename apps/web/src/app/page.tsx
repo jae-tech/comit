@@ -1,22 +1,16 @@
 'use client';
 
-import { useState, useEffect } from 'react';
+import { useState } from 'react';
 import { useRouter } from 'next/navigation';
-import { workspaceApi, authApi } from '@/lib/api';
+import { authApi } from '@/lib/api';
 import { useAuthStore } from '@/store/auth';
+import { useWorkspaces, useCreateWorkspace, useRemoveWorkspace } from '@/lib/queries';
 import { AuthGuard } from '@/components/auth-guard';
 import { AppHeader, CONTENT_WIDTH } from '@/components/app-header';
 import { Button } from '@/components/ui/button';
 import { Input } from '@/components/ui/input';
 import { FileText, Plus, Settings, LogOut, ChevronRight, MessageSquare, Trash2, BarChart2 } from 'lucide-react';
 import { toast } from 'sonner';
-
-interface Workspace {
-  id: string;
-  name: string;
-  personaName?: string | null;
-  createdAt: string;
-}
 
 function WorkspaceSkeleton() {
   return (
@@ -43,33 +37,26 @@ function WorkspaceSkeleton() {
 function HomePage() {
   const router = useRouter();
   const { clear, refreshToken } = useAuthStore();
-  const [workspaces, setWorkspaces] = useState<Workspace[]>([]);
-  const [loading, setLoading] = useState(true);
   const [newName, setNewName] = useState('');
-  const [creating, setCreating] = useState(false);
   const [showForm, setShowForm] = useState(false);
   const [pendingDeleteId, setPendingDeleteId] = useState<string | null>(null);
 
-  useEffect(() => {
-    workspaceApi.list().then((r) => setWorkspaces(r.data)).finally(() => setLoading(false));
-  }, []);
+  const { data: workspaces = [], isLoading } = useWorkspaces();
+  const createWorkspace = useCreateWorkspace();
+  const removeWorkspace = useRemoveWorkspace();
 
-  async function createWorkspace(e: React.FormEvent) {
+  async function handleCreate(e: React.FormEvent) {
     e.preventDefault();
     if (!newName.trim()) return;
-    setCreating(true);
-    const res = await workspaceApi.create(newName.trim());
-    setWorkspaces((prev) => [...prev, { ...res.data, createdAt: new Date().toISOString() }]);
+    await createWorkspace.mutateAsync(newName.trim());
     setNewName('');
     setShowForm(false);
-    setCreating(false);
   }
 
   async function confirmRemove(id: string) {
     setPendingDeleteId(null);
     try {
-      await workspaceApi.remove(id);
-      setWorkspaces((prev) => prev.filter((w) => w.id !== id));
+      await removeWorkspace.mutateAsync(id);
       toast.success('워크스페이스가 삭제되었습니다.');
     } catch {
       toast.error('워크스페이스 삭제에 실패했습니다.');
@@ -120,7 +107,7 @@ function HomePage() {
 
         {showForm && (
           <form
-            onSubmit={createWorkspace}
+            onSubmit={handleCreate}
             className="mb-4 flex gap-2 p-4 bg-white rounded-lg border border-stone-200 shadow-sm"
           >
             <Input
@@ -129,8 +116,8 @@ function HomePage() {
               onChange={(e) => setNewName(e.target.value)}
               autoFocus
             />
-            <Button type="submit" disabled={creating || !newName.trim()}>
-              {creating ? '생성 중...' : '생성'}
+            <Button type="submit" disabled={createWorkspace.isPending || !newName.trim()}>
+              {createWorkspace.isPending ? '생성 중...' : '생성'}
             </Button>
             <Button
               type="button"
@@ -142,7 +129,7 @@ function HomePage() {
           </form>
         )}
 
-        {loading ? (
+        {isLoading ? (
           <WorkspaceSkeleton />
         ) : workspaces.length === 0 ? (
           <div className="flex flex-col items-center gap-3 py-20 text-stone-400">
@@ -178,7 +165,6 @@ function HomePage() {
                 </div>
                 <div className="flex items-center gap-1 shrink-0 ml-4" onClick={(e) => e.stopPropagation()}>
                   {pendingDeleteId === ws.id ? (
-                    // 삭제 확인 상태
                     <>
                       <span className="text-xs text-red-600 font-medium mr-1">삭제할까요?</span>
                       <Button

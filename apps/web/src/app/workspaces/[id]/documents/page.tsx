@@ -1,9 +1,10 @@
 'use client';
 
-import { useState, useEffect, useRef, useCallback } from 'react';
+import { useState, useEffect, useRef } from 'react';
 import { useRouter, useParams } from 'next/navigation';
 import { toast } from 'sonner';
 import { documentApi } from '@/lib/api';
+import { useDocuments, useUploadDocument, useRemoveDocument } from '@/lib/queries';
 import { AuthGuard } from '@/components/auth-guard';
 import { AppHeader, CONTENT_WIDTH } from '@/components/app-header';
 import { Button } from '@/components/ui/button';
@@ -86,49 +87,39 @@ function DocumentsPage() {
   const router = useRouter();
   const params = useParams<{ id: string }>();
   const workspaceId = params.id;
-
-  const [docs, setDocs] = useState<Document[]>([]);
-  const [uploading, setUploading] = useState(false);
   const fileRef = useRef<HTMLInputElement>(null);
 
-  const loadDocs = useCallback(() => {
-    documentApi.list(workspaceId).then((r) => setDocs(r.data));
-  }, [workspaceId]);
-
-  useEffect(() => { loadDocs(); }, [loadDocs]);
+  const { data: docs = [] } = useDocuments(workspaceId);
+  const uploadDocument = useUploadDocument(workspaceId);
+  const removeDocument = useRemoveDocument(workspaceId);
 
   async function handleUpload(e: React.ChangeEvent<HTMLInputElement>) {
     const file = e.target.files?.[0];
     if (!file) return;
 
-    const MAX_SIZE = 50 * 1024 * 1024; // 50MB
+    const MAX_SIZE = 50 * 1024 * 1024;
     if (file.size > MAX_SIZE) {
       toast.error(`파일 크기가 50MB를 초과합니다. (${(file.size / 1024 / 1024).toFixed(1)}MB)`);
       if (fileRef.current) fileRef.current.value = '';
       return;
     }
 
-    setUploading(true);
     try {
-      await documentApi.upload(workspaceId, file);
+      await uploadDocument.mutateAsync(file);
       toast.info(`"${file.name}" 업로드됨 — 임베딩 처리 중...`);
-      loadDocs();
     } catch (err: unknown) {
       const msg =
         (err as { response?: { data?: { message?: string } } })?.response?.data?.message ??
         '업로드에 실패했습니다. 다시 시도해주세요.';
       toast.error(msg);
     } finally {
-      setUploading(false);
       if (fileRef.current) fileRef.current.value = '';
     }
   }
 
   async function handleRetry(doc: Document) {
-    // 실패한 문서를 삭제 후 재업로드 유도
     try {
-      await documentApi.remove(doc.id, workspaceId);
-      setDocs((prev) => prev.filter((d) => d.id !== doc.id));
+      await removeDocument.mutateAsync(doc.id);
       toast.info(`"${doc.filename}" 삭제됨 — 파일을 다시 업로드해주세요.`);
     } catch {
       toast.error('재시도 준비 중 오류가 발생했습니다.');
@@ -137,8 +128,7 @@ function DocumentsPage() {
 
   async function handleRemove(id: string, filename: string) {
     try {
-      await documentApi.remove(id, workspaceId);
-      setDocs((prev) => prev.filter((d) => d.id !== id));
+      await removeDocument.mutateAsync(id);
       toast.success(`"${filename}" 삭제됨`);
     } catch (err: unknown) {
       const msg =
@@ -181,8 +171,8 @@ function DocumentsPage() {
               className="hidden"
               onChange={handleUpload}
             />
-            <Button size="sm" onClick={() => fileRef.current?.click()} disabled={uploading}>
-              {uploading ? (
+            <Button size="sm" onClick={() => fileRef.current?.click()} disabled={uploadDocument.isPending}>
+              {uploadDocument.isPending ? (
                 <><Loader2 className="h-3.5 w-3.5 animate-spin" />처리 중...</>
               ) : (
                 <><Upload className="h-3.5 w-3.5" />업로드</>

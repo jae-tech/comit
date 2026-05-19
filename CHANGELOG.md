@@ -2,6 +2,19 @@
 
 All notable changes to this project will be documented in this file.
 
+## [0.0.6] - 2026-05-19
+
+### Added
+- **관리자 대시보드** — `/admin` 경로에 플랫폼 전체 통계(총 유저·세션·메시지·추정 비용) 및 유저별 상세 테이블 추가. `AdminPageGuard`로 관리자만 접근 가능
+- **TanStack Query 통합** — `src/lib/queries.ts`에 `useWorkspace`, `useDocuments`, `useChatSessions`, `useAdminStats` 등 공통 훅 추출. `Providers` 컴포넌트에 `QueryClientProvider` 래핑
+- **Markdown 테이블·HTML 렌더링** — `remark-gfm` + `rehype-raw` 플러그인 추가로 AI 응답의 테이블(`| col |`) 및 `<br>` 태그가 올바르게 렌더링됨
+
+### Fixed
+- **React 렌더 중 setState 오류** — 채팅 페이지에서 `router.replace()`를 렌더 함수 본문에서 직접 호출해 발생하던 "Cannot update a component (Router) while rendering a different component (ChatPage)" 오류 수정. 세션 초기화 로직을 `useEffect`로 이동
+- **채팅 자동 스크롤** — 스트리밍 중 사용자가 위로 스크롤 시 자동 스크롤 일시 중단. 아래로 이동 버튼(ChevronDown) 표시
+- **입력창 UX** — `Input` → 자동 높이 조절 `textarea`로 교체. Enter 전송 / Shift+Enter 줄바꿈 지원. 전송 후 포커스 복원
+- **미사용 import 정리** — `Input` 컴포넌트 import 제거
+
 ## [0.0.5] - 2026-05-19
 
 ### Fixed

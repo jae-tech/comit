@@ -3,7 +3,7 @@
 import { useState, useEffect } from 'react';
 import { useParams } from 'next/navigation';
 import { toast } from 'sonner';
-import { workspaceApi, providerApi } from '@/lib/api';
+import { useWorkspace, useProviders, useUpdatePersona, useSetActiveProvider } from '@/lib/queries';
 import { AuthGuard } from '@/components/auth-guard';
 import { AppHeader, CONTENT_WIDTH } from '@/components/app-header';
 import { Button } from '@/components/ui/button';
@@ -31,40 +31,29 @@ const PERSONA_TEMPLATES = [
 const DEFAULT_PROMPT =
   "You are a helpful assistant that answers questions based on the provided document context.\nAlways cite your sources. If the answer cannot be found in the context, say so clearly.\nRespond in the same language as the user's question.";
 
-interface RegisteredProvider {
-  id: string;
-  provider: string;
-  model: string;
-}
-
 function SettingsPage() {
   const params = useParams<{ id: string }>();
   const workspaceId = params.id;
 
+  const { data: workspace, isLoading } = useWorkspace(workspaceId);
+  const { data: registeredProviders = [] } = useProviders();
+  const updatePersona = useUpdatePersona();
+  const setActiveProvider = useSetActiveProvider();
+
   const [personaName, setPersonaName] = useState('');
   const [systemPrompt, setSystemPrompt] = useState('');
-  const [loading, setLoading] = useState(true);
-  const [saving, setSaving] = useState(false);
   const [saved, setSaved] = useState(false);
   const [selectedTemplate, setSelectedTemplate] = useState<string | null>(null);
-
-  // active provider 관련
-  const [registeredProviders, setRegisteredProviders] = useState<RegisteredProvider[]>([]);
   const [activeProviderId, setActiveProviderId] = useState<string | null>(null);
-  const [providerSaving, setProviderSaving] = useState(false);
 
   useEffect(() => {
-    Promise.all([
-      workspaceApi.get(workspaceId),
-      providerApi.list(),
-    ]).then(([wsRes, provRes]) => {
-      setPersonaName(wsRes.data.personaName ?? '');
-      setSystemPrompt(wsRes.data.systemPrompt ?? '');
-      setActiveProviderId(wsRes.data.activeProviderId ?? null);
-      setRegisteredProviders(provRes.data);
-      setLoading(false);
-    });
-  }, [workspaceId]);
+    if (!workspace) return;
+    /* eslint-disable react-hooks/set-state-in-effect */
+    setPersonaName(workspace.personaName ?? '');
+    setSystemPrompt(workspace.systemPrompt ?? '');
+    setActiveProviderId(workspace.activeProviderId ?? null);
+    /* eslint-enable react-hooks/set-state-in-effect */
+  }, [workspace]);
 
   function applyTemplate(template: { name: string; prompt: string }) {
     setPersonaName(template.name);
@@ -73,44 +62,27 @@ function SettingsPage() {
     setSaved(false);
   }
 
-  function handlePromptChange(value: string) {
-    setSystemPrompt(value);
-    setSelectedTemplate(null);
-    setSaved(false);
-  }
-
-  function handleNameChange(value: string) {
-    setPersonaName(value);
-    setSaved(false);
-  }
-
   async function handleSave() {
-    setSaving(true);
     try {
-      await workspaceApi.updatePersona(workspaceId, personaName, systemPrompt);
+      await updatePersona.mutateAsync({ id: workspaceId, personaName, systemPrompt });
       setSaved(true);
       setTimeout(() => setSaved(false), 2000);
     } catch {
       toast.error('저장에 실패했습니다. 다시 시도해 주세요.');
-    } finally {
-      setSaving(false);
     }
   }
 
   async function handleProviderSelect(providerId: string) {
-    setProviderSaving(true);
     try {
-      await workspaceApi.setActiveProvider(workspaceId, providerId);
+      await setActiveProvider.mutateAsync({ id: workspaceId, providerId });
       setActiveProviderId(providerId);
       toast.success('AI 모델이 변경되었습니다.');
     } catch {
       toast.error('AI 모델 변경에 실패했습니다.');
-    } finally {
-      setProviderSaving(false);
     }
   }
 
-  if (loading) {
+  if (isLoading) {
     return (
       <div className="flex h-screen items-center justify-center text-stone-400 text-sm bg-[#faf9f7]">
         불러오는 중...
@@ -124,11 +96,11 @@ function SettingsPage() {
         backHref={`/workspaces/${workspaceId}/chat`}
         title="AI 페르소나 설정"
         right={
-          <Button onClick={handleSave} disabled={saving} size="sm">
+          <Button onClick={handleSave} disabled={updatePersona.isPending} size="sm">
             {saved ? (
               <><Check className="h-3.5 w-3.5" />저장됨</>
             ) : (
-              <><Save className="h-3.5 w-3.5" />{saving ? '저장 중...' : '저장'}</>
+              <><Save className="h-3.5 w-3.5" />{updatePersona.isPending ? '저장 중...' : '저장'}</>
             )}
           </Button>
         }
@@ -160,7 +132,7 @@ function SettingsPage() {
                   <button
                     key={p.id}
                     onClick={() => !isActive && handleProviderSelect(p.id)}
-                    disabled={providerSaving}
+                    disabled={setActiveProvider.isPending}
                     className={`flex items-center justify-between rounded-lg border px-4 py-3 text-left transition-colors ${
                       isActive
                         ? 'border-stone-900 bg-stone-900 text-white'
@@ -234,7 +206,7 @@ function SettingsPage() {
           </label>
           <Input
             value={personaName}
-            onChange={(e) => handleNameChange(e.target.value)}
+            onChange={(e) => { setPersonaName(e.target.value); setSaved(false); }}
             placeholder="예: Alice the Legal Expert"
             maxLength={100}
           />
@@ -248,7 +220,7 @@ function SettingsPage() {
           </label>
           <textarea
             value={systemPrompt}
-            onChange={(e) => handlePromptChange(e.target.value)}
+            onChange={(e) => { setSystemPrompt(e.target.value); setSelectedTemplate(null); setSaved(false); }}
             placeholder={DEFAULT_PROMPT}
             maxLength={2000}
             rows={8}

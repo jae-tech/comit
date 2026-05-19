@@ -1,5 +1,7 @@
+import axios from 'axios';
 import { create } from 'zustand';
 import { persist } from 'zustand/middleware';
+import { registerGetAuthState } from '@/lib/auth-bridge';
 
 // JWT 클레임을 base64 디코딩으로 파싱 (추가 라이브러리 불필요)
 function parseJwtExp(token: string): number | null {
@@ -53,10 +55,9 @@ export const useAuthStore = create<AuthState>()(
               const { refreshToken: rt } = get();
               if (!rt) return;
               try {
-                // api는 순환 참조 방지를 위해 동적 import
-                const { api } = await import('@/lib/api');
-                const res = await api.post<{ accessToken: string; refreshToken: string }>(
-                  '/auth/refresh',
+                const base = process.env.NEXT_PUBLIC_API_URL ?? 'http://localhost:4000';
+                const res = await axios.post<{ accessToken: string; refreshToken: string }>(
+                  `${base}/auth/refresh`,
                   { refreshToken: rt },
                 );
                 get().setTokens(res.data.accessToken, res.data.refreshToken);
@@ -78,3 +79,6 @@ export const useAuthStore = create<AuthState>()(
     { name: 'comit-auth' },
   ),
 );
+
+// auth-bridge에 getState 등록 — api.ts가 auth.ts를 직접 import하지 않아도 됨
+registerGetAuthState(() => useAuthStore.getState());

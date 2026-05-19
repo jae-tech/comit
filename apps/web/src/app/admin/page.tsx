@@ -1,7 +1,6 @@
 'use client';
 
-import { useState, useEffect } from 'react';
-import { adminApi, type AdminStats } from '@/lib/api';
+import { useAdminStats } from '@/lib/queries';
 import { AdminPageGuard } from '@/components/admin-page-guard';
 import { AppHeader, CONTENT_WIDTH } from '@/components/app-header';
 import { Users, Activity, MessageSquare, DollarSign } from 'lucide-react';
@@ -66,17 +65,7 @@ function SkeletonCard() {
 }
 
 function AdminDashboard() {
-  const [stats, setStats] = useState<AdminStats | null>(null);
-  const [loading, setLoading] = useState(true);
-  const [error, setError] = useState<string | null>(null);
-
-  useEffect(() => {
-    adminApi
-      .stats()
-      .then((res) => setStats(res.data))
-      .catch(() => setError('통계를 불러오지 못했습니다.'))
-      .finally(() => setLoading(false));
-  }, []);
+  const { data: stats, isLoading, isError } = useAdminStats();
 
   return (
     <div className="min-h-screen bg-[#faf9f7]">
@@ -88,16 +77,16 @@ function AdminDashboard() {
       />
 
       <main className={`${CONTENT_WIDTH} py-8 flex flex-col gap-6`}>
-        {error && (
+        {isError && (
           <div className="bg-red-50 border border-red-200 rounded-lg px-5 py-4 text-sm text-red-700">
-            {error}
+            통계를 불러오지 못했습니다.
           </div>
         )}
 
         {/* 요약 카드 */}
         <section>
           <h2 className="text-sm font-medium text-stone-700 mb-3">플랫폼 요약</h2>
-          {loading ? (
+          {isLoading ? (
             <div className="grid grid-cols-2 gap-3 sm:grid-cols-4">
               {[1, 2, 3, 4].map((i) => <SkeletonCard key={i} />)}
             </div>
@@ -135,7 +124,7 @@ function AdminDashboard() {
           <div className="px-5 py-4 border-b border-stone-100">
             <h2 className="text-sm font-medium text-stone-700">유저별 통계</h2>
           </div>
-          {loading ? (
+          {isLoading ? (
             <div className="flex flex-col gap-0">
               {[1, 2, 3].map((i) => (
                 <div key={i} className="px-5 py-3 border-b border-stone-50 animate-pulse flex items-center gap-4">
