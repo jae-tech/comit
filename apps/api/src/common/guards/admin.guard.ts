@@ -6,7 +6,7 @@ import {
 } from '@nestjs/common';
 
 interface RequestWithUser {
-  user?: { id: string; email: string; role: string };
+  user?: { id: string; username: string; role: string };
 }
 
 @Injectable()

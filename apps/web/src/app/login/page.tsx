@@ -57,8 +57,9 @@ export default function LoginPage() {
 
           <form onSubmit={handleSubmit(onSubmit)} className="flex flex-col gap-3">
             <div className="flex flex-col gap-1.5">
-              <label className="text-xs font-medium text-stone-600">아이디</label>
+              <label htmlFor="login-username" className="text-xs font-medium text-stone-600">아이디</label>
               <Input
+                id="login-username"
                 type="text"
                 placeholder="username"
                 {...register('username')}
@@ -68,8 +69,9 @@ export default function LoginPage() {
               )}
             </div>
             <div className="flex flex-col gap-1.5">
-              <label className="text-xs font-medium text-stone-600">비밀번호</label>
+              <label htmlFor="login-password" className="text-xs font-medium text-stone-600">비밀번호</label>
               <Input
+                id="login-password"
                 type="password"
                 placeholder="••••••••"
                 {...register('password')}

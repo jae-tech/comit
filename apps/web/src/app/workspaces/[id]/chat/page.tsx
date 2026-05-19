@@ -65,11 +65,10 @@ function ChatPage() {
   }, [router]);
 
   const refreshSessions = useCallback(async () => {
-    await qc.invalidateQueries({ queryKey: queryKeys.chatSessions(workspaceId) });
-    const cached = qc.getQueryData<{ id: string; createdAt: string }[]>(
-      queryKeys.chatSessions(workspaceId),
-    ) ?? [];
-    return cached;
+    return await qc.fetchQuery<{ id: string; createdAt: string }[]>({
+      queryKey: queryKeys.chatSessions(workspaceId),
+      queryFn: () => chatApi.sessions(workspaceId).then((r) => r.data),
+    });
   }, [qc, workspaceId]);
 
   const { messages, setMessages, streaming, sendMessage } = useStreamChat({

@@ -51,8 +51,9 @@ export default function RegisterPage() {
 
           <form onSubmit={handleSubmit(onSubmit)} className="flex flex-col gap-3">
             <div className="flex flex-col gap-1.5">
-              <label className="text-xs font-medium text-stone-600">아이디</label>
+              <label htmlFor="register-username" className="text-xs font-medium text-stone-600">아이디</label>
               <Input
+                id="register-username"
                 type="text"
                 placeholder="영문, 숫자, _, - (2~32자)"
                 {...register('username')}
@@ -62,8 +63,9 @@ export default function RegisterPage() {
               )}
             </div>
             <div className="flex flex-col gap-1.5">
-              <label className="text-xs font-medium text-stone-600">비밀번호</label>
+              <label htmlFor="register-password" className="text-xs font-medium text-stone-600">비밀번호</label>
               <Input
+                id="register-password"
                 type="password"
                 placeholder="8자 이상"
                 {...register('password')}

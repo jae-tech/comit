@@ -52,6 +52,16 @@
 
 - [ ] **N+1 직렬 청크 INSERT 최적화 (P3)** — `embedding.processor.ts:102` 청크당 1개 INSERT 직렬 루프. 100개 청크 = 100 round-trip. bulk VALUES 또는 `Promise.all` 병렬 처리로 교체. Effort: XS (CC+gstack). Where: `apps/api/src/documents/embedding.processor.ts`.
 
+## /autoplan 리뷰 후속 (from /autoplan 2026-05-20)
+
+- [ ] **e2e 테스트 복구 (P1)** — `apps/api/test/` 삭제된 파일 복구. 최소 3개 케이스: `POST /auth/login` (username), `GET /admin/stats` (admin role → 200, user role → 403), 채팅 세션 IDOR 방지(`workspaceId` 다른 세션 접근 → 404). Effort: S (CC+gstack). Context: email→username 마이그레이션과 AdminGuard 추가 이후 통합 테스트 커버리지 전무.
+
+- [ ] **user/assistant INSERT 트랜잭션화 (P2)** — `chat.service.ts`에서 그래프 완료 후 user INSERT → `done` SSE → (이후) assistant INSERT 순서. 그래프 성공 + user INSERT 실패 시 대화 히스토리 오염. DrizzleORM 트랜잭션으로 user+assistant INSERT를 묶고 `done` 이벤트는 커밋 이후 발송. Effort: S (CC+gstack). Where: `apps/api/src/chat/chat.service.ts`.
+
+- [ ] **pricing 모델 자동화 (P3)** — `apps/api/src/common/pricing.ts`의 단가가 하드코딩. 미등록 모델은 $0 표시. unknown 모델 사용 시 대시보드에 `⚠️` 경고 플래그 추가. 단가는 환경변수 오버라이드 지원 검토. Effort: S (CC+gstack). Where: `pricing.ts`, `admin.service.ts`.
+
+- [ ] **admin 테이블 접근성 (P2)** — `apps/web/src/app/admin/page.tsx` `<th scope="col">` 추가, 에러 메시지 `role="alert"` 추가. Effort: XS (CC+gstack).
+
 ## 관리자 대화 통계 (from /plan-ceo-review 2026-05-19)
 
 - [ ] **관리자 접근 감사 로그 (P2)** — `AdminController`의 `GET /admin/stats` 접근 시 구조화 로그 적재 (`{ adminId, timestamp, ip }`). 관리자 계정 유출 시 데이터 접근 범위 추적 가능. Effort: XS (CC+gstack). Context: 현재 MVP에서는 AdminGuard만 있고 접근 이력 없음. Where: `apps/api/src/admin/admin.controller.ts` — NestJS Logger 주입 후 `this.logger.log({ event: 'admin_stats_access', adminId, ip })`.

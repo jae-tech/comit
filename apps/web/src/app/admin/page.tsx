@@ -40,7 +40,7 @@ function SummaryCard({
 }) {
   return (
     <div className="bg-white border border-stone-200 rounded-lg px-5 py-4 flex items-start gap-3">
-      <div className="w-9 h-9 rounded-md bg-blue-50 flex items-center justify-center shrink-0 mt-0.5">
+      <div className="w-8 h-8 rounded-xl bg-blue-50 flex items-center justify-center shrink-0 mt-0.5">
         <Icon className="h-4 w-4 text-blue-700" />
       </div>
       <div className="min-w-0">
