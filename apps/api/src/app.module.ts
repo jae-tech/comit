@@ -12,6 +12,7 @@ import { DocumentsModule } from './documents/documents.module';
 import { ChatModule } from './chat/chat.module';
 import { DemoModule } from './demo/demo.module';
 import { UsageModule } from './usage/usage.module';
+import { AdminModule } from './admin/admin.module';
 
 @Module({
   imports: [
@@ -44,6 +45,7 @@ import { UsageModule } from './usage/usage.module';
     ChatModule,
     DemoModule,
     UsageModule,
+    AdminModule,
   ],
   controllers: [AppController],
   providers: [AppService],

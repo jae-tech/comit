@@ -1,7 +1,7 @@
 import { create } from 'zustand';
 import { persist } from 'zustand/middleware';
 
-// JWT exp 클레임을 base64 디코딩으로 파싱 (추가 라이브러리 불필요)
+// JWT 클레임을 base64 디코딩으로 파싱 (추가 라이브러리 불필요)
 function parseJwtExp(token: string): number | null {
   try {
     const payload = token.split('.')[1];
@@ -13,11 +13,23 @@ function parseJwtExp(token: string): number | null {
   }
 }
 
+function parseJwtRole(token: string): string | null {
+  try {
+    const payload = token.split('.')[1];
+    if (!payload) return null;
+    const json = JSON.parse(atob(payload.replace(/-/g, '+').replace(/_/g, '/')));
+    return typeof json.role === 'string' ? json.role : null;
+  } catch {
+    return null;
+  }
+}
+
 let refreshTimer: ReturnType<typeof setTimeout> | null = null;
 
 interface AuthState {
   accessToken: string | null;
   refreshToken: string | null;
+  role: string | null;
   setTokens: (accessToken: string, refreshToken: string) => void;
   clear: () => void;
 }
@@ -27,8 +39,9 @@ export const useAuthStore = create<AuthState>()(
     (set, get) => ({
       accessToken: null,
       refreshToken: null,
+      role: null,
       setTokens: (accessToken, refreshToken) => {
-        set({ accessToken, refreshToken });
+        set({ accessToken, refreshToken, role: parseJwtRole(accessToken) });
 
         // 만료 60초 전에 미리 갱신 (스트림 중단 방지)
         if (refreshTimer) clearTimeout(refreshTimer);
@@ -59,7 +72,7 @@ export const useAuthStore = create<AuthState>()(
           clearTimeout(refreshTimer);
           refreshTimer = null;
         }
-        set({ accessToken: null, refreshToken: null });
+        set({ accessToken: null, refreshToken: null, role: null });
       },
     }),
     { name: 'comit-auth' },

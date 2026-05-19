@@ -95,7 +95,7 @@ export class AuthService {
   }
 
   private issueTokens(user: User): AuthTokens {
-    const payload = { sub: user.id, email: user.email };
+    const payload = { sub: user.id, email: user.email, role: user.role };
 
     const accessToken = this.jwtService.sign(payload);
     const refreshToken = this.jwtService.sign(

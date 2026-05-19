@@ -278,6 +278,33 @@ export const usageApi = {
   },
 };
 
+// ── Admin ─────────────────────────────────────────────
+export interface AdminUserStats {
+  userId: string;
+  email: string;
+  sessionCount: number;
+  messageCount: number;
+  inputTokens: number;
+  outputTokens: number;
+  costUsd: number;
+  lastActivityAt: string | null;
+}
+
+export interface AdminStats {
+  totalUsers: number;
+  activeUsers30d: number;
+  totalSessions: number;
+  totalMessages: number;
+  totalInputTokens: number;
+  totalOutputTokens: number;
+  estimatedCostUsd: number;
+  byUser: AdminUserStats[];
+}
+
+export const adminApi = {
+  stats: () => api.get<AdminStats>('/admin/stats'),
+};
+
 // ── Demo (public, no auth) ────────────────────────────
 export const demoApi = {
   chatUrl: () => `${BASE}/demo/chat`,

@@ -52,6 +52,10 @@
 
 - [ ] **N+1 직렬 청크 INSERT 최적화 (P3)** — `embedding.processor.ts:102` 청크당 1개 INSERT 직렬 루프. 100개 청크 = 100 round-trip. bulk VALUES 또는 `Promise.all` 병렬 처리로 교체. Effort: XS (CC+gstack). Where: `apps/api/src/documents/embedding.processor.ts`.
 
+## 관리자 대화 통계 (from /plan-ceo-review 2026-05-19)
+
+- [ ] **관리자 접근 감사 로그 (P2)** — `AdminController`의 `GET /admin/stats` 접근 시 구조화 로그 적재 (`{ adminId, timestamp, ip }`). 관리자 계정 유출 시 데이터 접근 범위 추적 가능. Effort: XS (CC+gstack). Context: 현재 MVP에서는 AdminGuard만 있고 접근 이력 없음. Where: `apps/api/src/admin/admin.controller.ts` — NestJS Logger 주입 후 `this.logger.log({ event: 'admin_stats_access', adminId, ip })`.
+
 ## LangGraph 통합 (from /plan-ceo-review 2026-05-18)
 
 설계 방향: 기존 `chat.service.ts` RAG 파이프라인은 유지. LangGraph StateGraph로 신규 기능만 추가. 안정화 후 기존 `/chat/query` 대체.

@@ -29,6 +29,13 @@
       "when": 1747526400000,
       "tag": "0003_add_token_columns",
       "breakpoints": true
+    },
+    {
+      "idx": 4,
+      "version": "7",
+      "when": 1779163460136,
+      "tag": "0004_peaceful_kid_colt",
+      "breakpoints": true
     }
   ]
 }
