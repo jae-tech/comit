@@ -145,7 +145,7 @@ function AdminDashboard() {
               <table className="w-full text-xs min-w-[640px]">
                 <thead>
                   <tr className="text-stone-400 border-b border-stone-100">
-                    <th className="px-5 py-2.5 text-left font-medium">이메일</th>
+                    <th className="px-5 py-2.5 text-left font-medium">아이디</th>
                     <th className="px-5 py-2.5 text-right font-medium">세션</th>
                     <th className="px-5 py-2.5 text-right font-medium">메시지</th>
                     <th className="px-5 py-2.5 text-right font-medium">토큰</th>
@@ -160,7 +160,7 @@ function AdminDashboard() {
                       className="border-b border-stone-50 last:border-0 hover:bg-stone-50 transition-colors"
                     >
                       <td className="px-5 py-2.5 font-medium text-stone-900 truncate max-w-[200px]">
-                        {u.email}
+                        {u.username}
                       </td>
                       <td className="px-5 py-2.5 text-right text-stone-600">
                         {u.sessionCount}

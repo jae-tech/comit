@@ -138,10 +138,10 @@ export async function authFetch(url: string, init?: RequestInit): Promise<Respon
 
 // ── Auth ──────────────────────────────────────────────
 export const authApi = {
-  register: (email: string, password: string) =>
-    api.post<{ accessToken: string; refreshToken: string }>('/auth/register', { email, password }),
-  login: (email: string, password: string) =>
-    api.post<{ accessToken: string; refreshToken: string }>('/auth/login', { email, password }),
+  register: (username: string, password: string) =>
+    api.post<{ accessToken: string; refreshToken: string }>('/auth/register', { username, password }),
+  login: (username: string, password: string) =>
+    api.post<{ accessToken: string; refreshToken: string }>('/auth/login', { username, password }),
   logout: (refreshToken: string) =>
     api.post('/auth/logout', { refreshToken }),
 };
@@ -281,7 +281,7 @@ export const usageApi = {
 // ── Admin ─────────────────────────────────────────────
 export interface AdminUserStats {
   userId: string;
-  email: string;
+  username: string;
   sessionCount: number;
   messageCount: number;
   inputTokens: number;

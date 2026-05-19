@@ -5,7 +5,7 @@ import { estimateCost } from '@/common/pricing';
 
 export interface UserStats {
   userId: string;
-  email: string;
+  username: string;
   sessionCount: number;
   messageCount: number;
   inputTokens: number;
@@ -73,7 +73,7 @@ export class AdminService {
     // 유저별 통계 — role='admin' 제외, 모델별 비용 계산을 위해 ai_providers 조인
     const userRows = await this.drizzle.db.execute<{
       user_id: string;
-      email: string;
+      username: string;
       session_count: string;
       message_count: string;
       input_tokens: string;
@@ -83,7 +83,7 @@ export class AdminService {
     }>(sql`
       SELECT
         u.id                                              AS user_id,
-        u.email,
+        u.username,
         COUNT(DISTINCT cs.id)                            AS session_count,
         COALESCE(SUM(CASE WHEN cm.role = 'assistant' THEN 1 ELSE 0 END), 0) AS message_count,
         COALESCE(SUM(CASE WHEN cm.role = 'assistant' THEN cm.input_tokens ELSE 0 END), 0) AS input_tokens,
@@ -100,7 +100,7 @@ export class AdminService {
       LEFT JOIN chat_sessions cs ON cs.user_id = u.id
       LEFT JOIN chat_messages cm ON cm.session_id = cs.id
       WHERE u.role != 'admin'
-      GROUP BY u.id, u.email
+      GROUP BY u.id, u.username
       ORDER BY SUM(CASE WHEN cm.role = 'assistant' THEN cm.input_tokens ELSE 0 END) DESC NULLS LAST
     `);
 
@@ -109,7 +109,7 @@ export class AdminService {
       const out = Number(row.output_tokens);
       return {
         userId: row.user_id,
-        email: row.email,
+        username: row.username,
         sessionCount: Number(row.session_count),
         messageCount: Number(row.message_count),
         inputTokens: inp,

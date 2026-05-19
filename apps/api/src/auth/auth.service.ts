@@ -27,15 +27,15 @@ export class AuthService {
     const [existing] = await this.drizzle.db
       .select({ id: users.id })
       .from(users)
-      .where(eq(users.email, dto.email))
+      .where(eq(users.username, dto.username))
       .limit(1);
 
-    if (existing) throw new ConflictException('Email already in use');
+    if (existing) throw new ConflictException('Username already in use');
 
     const passwordHash = await bcrypt.hash(dto.password, 12);
     const [user] = await this.drizzle.db
       .insert(users)
-      .values({ email: dto.email, passwordHash })
+      .values({ username: dto.username, passwordHash })
       .returning();
 
     return this.issueTokens(user);
@@ -45,7 +45,7 @@ export class AuthService {
     const [user] = await this.drizzle.db
       .select()
       .from(users)
-      .where(eq(users.email, dto.email))
+      .where(eq(users.username, dto.username))
       .limit(1);
 
     if (!user) throw new UnauthorizedException('Invalid credentials');
@@ -95,7 +95,7 @@ export class AuthService {
   }
 
   private issueTokens(user: User): AuthTokens {
-    const payload = { sub: user.id, email: user.email, role: user.role };
+    const payload = { sub: user.id, username: user.username, role: user.role };
 
     const accessToken = this.jwtService.sign(payload);
     const refreshToken = this.jwtService.sign(

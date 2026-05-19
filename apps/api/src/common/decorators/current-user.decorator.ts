@@ -5,7 +5,7 @@ export const CurrentUser = createParamDecorator(
     // eslint-disable-next-line @typescript-eslint/no-unsafe-member-access
     return ctx.switchToHttp().getRequest().user as {
       id: string;
-      email: string;
+      username: string;
     };
   },
 );

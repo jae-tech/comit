@@ -4,12 +4,12 @@
  * 실행: pnpm --filter @comit/api seed:admin
  *
  * 관리자 계정을 생성하거나 기존 계정을 업데이트합니다.
- * 이미 동일 이메일 계정이 존재하면 role을 admin으로 설정하고 비밀번호를 재해시합니다.
+ * 이미 동일 username 계정이 존재하면 role을 admin으로 설정하고 비밀번호를 재해시합니다.
  *
  * 필수 환경변수 (.env):
  *   DATABASE_URL      — PostgreSQL 연결 문자열
  *   ENCRYPTION_KEY    — 64-char hex (32바이트 AES 키)
- *   ADMIN_EMAIL       — 관리자 이메일 (없으면 exit 1)
+ *   ADMIN_USERNAME    — 관리자 아이디 (없으면 exit 1)
  *   ADMIN_PASSWORD    — 관리자 비밀번호 최소 8자 (없으면 exit 1)
  */
 
@@ -41,7 +41,7 @@ if (fs.existsSync(envPath)) {
 
 const DATABASE_URL = process.env.DATABASE_URL;
 const ENCRYPTION_KEY = process.env.ENCRYPTION_KEY;
-const ADMIN_EMAIL = process.env.ADMIN_EMAIL;
+const ADMIN_USERNAME = process.env.ADMIN_USERNAME;
 const ADMIN_PASSWORD = process.env.ADMIN_PASSWORD;
 
 if (!DATABASE_URL) {
@@ -54,8 +54,8 @@ if (!ENCRYPTION_KEY || ENCRYPTION_KEY.length !== 64) {
   );
   process.exit(1);
 }
-if (!ADMIN_EMAIL) {
-  console.error('❌ ADMIN_EMAIL이 설정되지 않았습니다 — .env에 추가하세요');
+if (!ADMIN_USERNAME) {
+  console.error('❌ ADMIN_USERNAME이 설정되지 않았습니다 — .env에 추가하세요');
   process.exit(1);
 }
 if (!ADMIN_PASSWORD) {
@@ -81,7 +81,7 @@ async function main() {
     const [existing] = await db
       .select()
       .from(schema.users)
-      .where(eq(schema.users.email, ADMIN_EMAIL!))
+      .where(eq(schema.users.username, ADMIN_USERNAME!))
       .limit(1);
 
     if (existing) {
@@ -89,18 +89,18 @@ async function main() {
         .update(schema.users)
         .set({ passwordHash, role: 'admin' })
         .where(eq(schema.users.id, existing.id));
-      console.log(`✅ Admin account updated: ${ADMIN_EMAIL} (${existing.id})`);
+      console.log(`✅ Admin account updated: ${ADMIN_USERNAME} (${existing.id})`);
     } else {
       const [user] = await db
         .insert(schema.users)
-        .values({ email: ADMIN_EMAIL!, passwordHash, role: 'admin' })
+        .values({ username: ADMIN_USERNAME!, passwordHash, role: 'admin' })
         .returning();
-      console.log(`✅ Admin account created: ${ADMIN_EMAIL} (${user.id})`);
+      console.log(`✅ Admin account created: ${ADMIN_USERNAME} (${user.id})`);
     }
 
     console.log('\n─────────────────────────────────────────');
     console.log('🎉 Admin seed 완료!\n');
-    console.log(`  Email    = ${ADMIN_EMAIL}`);
+    console.log(`  Username = ${ADMIN_USERNAME}`);
     console.log('  Role     = admin');
     console.log('\n관리자 대시보드: /admin');
     console.log('─────────────────────────────────────────\n');

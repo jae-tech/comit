@@ -30,7 +30,7 @@ const vector = (name: string, dim: number) =>
 
 export const users = pgTable('users', {
   id: uuid('id').primaryKey().defaultRandom(),
-  email: varchar('email').notNull().unique(),
+  username: varchar('username').notNull().unique(),
   passwordHash: varchar('password_hash').notNull(),
   role: varchar('role').notNull().default('user'),
   createdAt: timestamp('created_at', { withTimezone: true })
