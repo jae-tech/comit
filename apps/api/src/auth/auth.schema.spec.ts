@@ -1,17 +1,17 @@
 import { RegisterSchema, LoginSchema } from '@comit/shared';
 
 describe('RegisterSchema', () => {
-  it('유효한 이메일과 8자 이상 비밀번호는 통과한다', () => {
+  it('유효한 username과 8자 이상 비밀번호는 통과한다', () => {
     const result = RegisterSchema.safeParse({
-      email: 'user@example.com',
+      username: 'valid_user',
       password: 'password1',
     });
     expect(result.success).toBe(true);
   });
 
-  it('이메일 형식이 아니면 실패한다', () => {
+  it('허용되지 않는 문자가 포함된 username은 실패한다', () => {
     const result = RegisterSchema.safeParse({
-      email: 'not-an-email',
+      username: 'user@example.com',
       password: 'password1',
     });
     expect(result.success).toBe(false);
@@ -19,15 +19,15 @@ describe('RegisterSchema', () => {
 
   it('비밀번호가 8자 미만이면 실패한다', () => {
     const result = RegisterSchema.safeParse({
-      email: 'user@example.com',
+      username: 'validuser',
       password: '1234567',
     });
     expect(result.success).toBe(false);
   });
 
-  it('빈 이메일은 실패한다', () => {
+  it('빈 username은 실패한다', () => {
     const result = RegisterSchema.safeParse({
-      email: '',
+      username: '',
       password: 'password1',
     });
     expect(result.success).toBe(false);
@@ -35,7 +35,7 @@ describe('RegisterSchema', () => {
 
   it('빈 비밀번호는 실패한다', () => {
     const result = RegisterSchema.safeParse({
-      email: 'user@example.com',
+      username: 'validuser',
       password: '',
     });
     expect(result.success).toBe(false);
@@ -43,17 +43,17 @@ describe('RegisterSchema', () => {
 });
 
 describe('LoginSchema', () => {
-  it('유효한 이메일과 비밀번호는 통과한다', () => {
+  it('유효한 username과 비밀번호는 통과한다', () => {
     const result = LoginSchema.safeParse({
-      email: 'user@example.com',
+      username: 'validuser',
       password: 'any',
     });
     expect(result.success).toBe(true);
   });
 
-  it('이메일 형식이 아니면 실패한다', () => {
+  it('빈 username은 실패한다', () => {
     const result = LoginSchema.safeParse({
-      email: 'notvalid',
+      username: '',
       password: 'any',
     });
     expect(result.success).toBe(false);
@@ -61,7 +61,7 @@ describe('LoginSchema', () => {
 
   it('비밀번호가 빈 문자열이면 실패한다', () => {
     const result = LoginSchema.safeParse({
-      email: 'user@example.com',
+      username: 'validuser',
       password: '',
     });
     expect(result.success).toBe(false);

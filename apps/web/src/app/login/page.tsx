@@ -26,11 +26,11 @@ export default function LoginPage() {
 
   async function onSubmit(data: LoginDto) {
     try {
-      const res = await authApi.login(data.email, data.password);
+      const res = await authApi.login(data.username, data.password);
       setTokens(res.data.accessToken, res.data.refreshToken);
       try {
         const payload = JSON.parse(atob(res.data.accessToken.split('.')[1]));
-        if (payload.email === 'demo@com.it') {
+        if (payload.username === 'demo') {
           router.push('/demo');
           return;
         }
@@ -39,7 +39,7 @@ export default function LoginPage() {
       }
       router.push('/');
     } catch {
-      setError('root', { message: '이메일 또는 비밀번호가 올바르지 않습니다.' });
+      setError('root', { message: '아이디 또는 비밀번호가 올바르지 않습니다.' });
     }
   }
 
@@ -57,19 +57,21 @@ export default function LoginPage() {
 
           <form onSubmit={handleSubmit(onSubmit)} className="flex flex-col gap-3">
             <div className="flex flex-col gap-1.5">
-              <label className="text-xs font-medium text-stone-600">이메일</label>
+              <label htmlFor="login-username" className="text-xs font-medium text-stone-600">아이디</label>
               <Input
-                type="email"
-                placeholder="name@example.com"
-                {...register('email')}
+                id="login-username"
+                type="text"
+                placeholder="username"
+                {...register('username')}
               />
-              {errors.email && (
-                <p className="text-xs text-red-600">{errors.email.message}</p>
+              {errors.username && (
+                <p className="text-xs text-red-600">{errors.username.message}</p>
               )}
             </div>
             <div className="flex flex-col gap-1.5">
-              <label className="text-xs font-medium text-stone-600">비밀번호</label>
+              <label htmlFor="login-password" className="text-xs font-medium text-stone-600">비밀번호</label>
               <Input
+                id="login-password"
                 type="password"
                 placeholder="••••••••"
                 {...register('password')}

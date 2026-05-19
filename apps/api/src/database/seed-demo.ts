@@ -78,7 +78,7 @@ const ENCRYPTION_KEY = process.env.ENCRYPTION_KEY;
 const DEMO_API_KEY = process.env.DEMO_API_KEY;
 const DEMO_PROVIDER = process.env.DEMO_PROVIDER ?? 'openai';
 const DEMO_MODEL = process.env.DEMO_MODEL ?? 'gpt-4o-mini';
-const DEMO_EMAIL = 'demo@com.it';
+const DEMO_USERNAME = 'demo';
 const DEMO_PASSWORD = process.env.DEMO_PASSWORD ?? 'demo';
 const DEMO_WORKSPACE_NAME = 'Comit 데모';
 
@@ -147,18 +147,18 @@ async function main() {
     let [user] = await db
       .select()
       .from(schema.users)
-      .where(eq(schema.users.email, DEMO_EMAIL))
+      .where(eq(schema.users.username, DEMO_USERNAME))
       .limit(1);
 
     if (user) {
-      console.log(`✅ 기존 데모 유저 재사용: ${user.email} (${user.id})`);
+      console.log(`✅ 기존 데모 유저 재사용: ${user.username} (${user.id})`);
     } else {
       const passwordHash = await bcrypt.hash(DEMO_PASSWORD, 12);
       [user] = await db
         .insert(schema.users)
-        .values({ email: DEMO_EMAIL, passwordHash })
+        .values({ username: DEMO_USERNAME, passwordHash })
         .returning();
-      console.log(`✅ 데모 유저 생성: ${user.email} (${user.id})`);
+      console.log(`✅ 데모 유저 생성: ${user.username} (${user.id})`);
     }
 
     // 2. 워크스페이스 생성 또는 재사용

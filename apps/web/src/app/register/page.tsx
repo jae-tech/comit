@@ -26,13 +26,13 @@ export default function RegisterPage() {
 
   async function onSubmit(data: RegisterDto) {
     try {
-      const res = await authApi.register(data.email, data.password);
+      const res = await authApi.register(data.username, data.password);
       setTokens(res.data.accessToken, res.data.refreshToken);
       router.push('/');
     } catch (err: unknown) {
       const status = (err as { response?: { status?: number } })?.response?.status;
       setError('root', {
-        message: status === 409 ? '이미 사용 중인 이메일입니다.' : '회원가입에 실패했습니다.',
+        message: status === 409 ? '이미 사용 중인 아이디입니다.' : '회원가입에 실패했습니다.',
       });
     }
   }
@@ -51,19 +51,21 @@ export default function RegisterPage() {
 
           <form onSubmit={handleSubmit(onSubmit)} className="flex flex-col gap-3">
             <div className="flex flex-col gap-1.5">
-              <label className="text-xs font-medium text-stone-600">이메일</label>
+              <label htmlFor="register-username" className="text-xs font-medium text-stone-600">아이디</label>
               <Input
-                type="email"
-                placeholder="name@example.com"
-                {...register('email')}
+                id="register-username"
+                type="text"
+                placeholder="영문, 숫자, _, - (2~32자)"
+                {...register('username')}
               />
-              {errors.email && (
-                <p className="text-xs text-red-600">{errors.email.message}</p>
+              {errors.username && (
+                <p className="text-xs text-red-600">{errors.username.message}</p>
               )}
             </div>
             <div className="flex flex-col gap-1.5">
-              <label className="text-xs font-medium text-stone-600">비밀번호</label>
+              <label htmlFor="register-password" className="text-xs font-medium text-stone-600">비밀번호</label>
               <Input
+                id="register-password"
                 type="password"
                 placeholder="8자 이상"
                 {...register('password')}

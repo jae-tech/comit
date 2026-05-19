@@ -1,5 +1,5 @@
 import axios from 'axios';
-import { useAuthStore } from '@/store/auth';
+import { getAuthState } from '@/lib/auth-bridge';
 
 const BASE = process.env.NEXT_PUBLIC_API_URL ?? 'http://localhost:4000';
 
@@ -8,7 +8,7 @@ export const api = axios.create({ baseURL: BASE });
 // 요청마다 zustand store에서 토큰 주입
 api.interceptors.request.use((config) => {
   if (typeof window !== 'undefined') {
-    const token = useAuthStore.getState().accessToken;
+    const token = getAuthState().accessToken;
     if (token) config.headers.Authorization = `Bearer ${token}`;
   }
   return config;
@@ -32,7 +32,7 @@ api.interceptors.response.use(
       return Promise.reject(err);
     }
 
-    const { refreshToken, setTokens, clear } = useAuthStore.getState();
+    const { refreshToken, setTokens, clear } = getAuthState();
 
     if (!refreshToken) {
       clear();
@@ -87,7 +87,7 @@ api.interceptors.response.use(
 // 401 수신 시 /auth/refresh를 호출하고 원본 요청을 재시도한다.
 export async function authFetch(url: string, init?: RequestInit): Promise<Response> {
   const token = typeof window !== 'undefined'
-    ? useAuthStore.getState().accessToken
+    ? getAuthState().accessToken
     : null;
 
   const headers = new Headers(init?.headers);
@@ -96,7 +96,7 @@ export async function authFetch(url: string, init?: RequestInit): Promise<Respon
   const res = await fetch(url, { ...init, headers });
   if (res.status !== 401) return res;
 
-  const { refreshToken, setTokens, clear } = useAuthStore.getState();
+  const { refreshToken, setTokens, clear } = getAuthState();
   if (!refreshToken) {
     clear();
     window.location.href = '/login';
@@ -138,10 +138,10 @@ export async function authFetch(url: string, init?: RequestInit): Promise<Respon
 
 // ── Auth ──────────────────────────────────────────────
 export const authApi = {
-  register: (email: string, password: string) =>
-    api.post<{ accessToken: string; refreshToken: string }>('/auth/register', { email, password }),
-  login: (email: string, password: string) =>
-    api.post<{ accessToken: string; refreshToken: string }>('/auth/login', { email, password }),
+  register: (username: string, password: string) =>
+    api.post<{ accessToken: string; refreshToken: string }>('/auth/register', { username, password }),
+  login: (username: string, password: string) =>
+    api.post<{ accessToken: string; refreshToken: string }>('/auth/login', { username, password }),
   logout: (refreshToken: string) =>
     api.post('/auth/logout', { refreshToken }),
 };
@@ -225,7 +225,7 @@ export const chatApi = {
   queryUrl: () => `${BASE}/chat/query`,
   queryHeaders: () => {
     const token = typeof window !== 'undefined'
-      ? useAuthStore.getState().accessToken
+      ? getAuthState().accessToken
       : null;
     return {
       'Content-Type': 'application/json',
@@ -276,6 +276,33 @@ export const usageApi = {
     if (workspaceId) params.set('workspaceId', workspaceId);
     return api.get<SessionUsage[]>(`/usage/sessions?${params.toString()}`);
   },
+};
+
+// ── Admin ─────────────────────────────────────────────
+export interface AdminUserStats {
+  userId: string;
+  username: string;
+  sessionCount: number;
+  messageCount: number;
+  inputTokens: number;
+  outputTokens: number;
+  costUsd: number;
+  lastActivityAt: string | null;
+}
+
+export interface AdminStats {
+  totalUsers: number;
+  activeUsers30d: number;
+  totalSessions: number;
+  totalMessages: number;
+  totalInputTokens: number;
+  totalOutputTokens: number;
+  estimatedCostUsd: number;
+  byUser: AdminUserStats[];
+}
+
+export const adminApi = {
+  stats: () => api.get<AdminStats>('/admin/stats'),
 };
 
 // ── Demo (public, no auth) ────────────────────────────

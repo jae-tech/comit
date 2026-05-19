@@ -1,92 +1,52 @@
 'use client';
 
-import { useState, useEffect, useCallback } from 'react';
-import { providerApi, type ModelInfo } from '@/lib/api';
+import { useState } from 'react';
+import {
+  useProviders,
+  useProviderModels,
+  useCreateProvider,
+  useRemoveProvider,
+} from '@/lib/queries';
 import { AuthGuard } from '@/components/auth-guard';
 import { AppHeader, CONTENT_WIDTH } from '@/components/app-header';
 import { Button } from '@/components/ui/button';
 import { Input } from '@/components/ui/input';
 import { Trash2, CheckCircle, KeyRound, RefreshCw } from 'lucide-react';
 
-interface Provider {
-  id: string;
-  provider: string;
-  model: string;
-  createdAt: string;
-}
-
 const PROVIDERS = ['openai', 'anthropic', 'gemini'] as const;
 
 function ProviderPage() {
-  const [providers, setProviders] = useState<Provider[]>([]);
   const [providerType, setProviderType] = useState<string>('openai');
   const [apiKey, setApiKey] = useState('');
   const [model, setModel] = useState('');
-  const [models, setModels] = useState<ModelInfo[]>([]);
-  const [modelsLoading, setModelsLoading] = useState(false);
-  const [loading, setLoading] = useState(false);
   const [error, setError] = useState('');
   const [success, setSuccess] = useState('');
 
-  useEffect(() => {
-    providerApi.list().then((r) => setProviders(r.data));
-  }, []);
+  const { data: providers = [] } = useProviders();
+  const registeredForType = providers.find((p) => p.provider === providerType);
 
-  // 모델 목록 로드 — registered 여부는 호출자가 보장하거나, API 실패 시 빈 배열 처리
-  const loadModels = useCallback(
-    async (pType: string, knownProviders?: Provider[]) => {
-      const list = knownProviders ?? providers;
-      const registered = list.find((p) => p.provider === pType);
-      if (!registered) {
-        setModels([]);
-        setModel('');
-        return;
-      }
-      setModelsLoading(true);
-      try {
-        const res = await providerApi.models(pType);
-        setModels(res.data.models);
-        // 현재 저장된 모델이 목록에 있으면 유지, 없으면 첫 번째로
-        setModel((prev) => {
-          const exists = res.data.models.find((m) => m.id === prev);
-          return exists ? prev : (res.data.models[0]?.id ?? '');
-        });
-      } catch {
-        setModels([]);
-        setModel('');
-      } finally {
-        setModelsLoading(false);
-      }
-    },
-    [providers],
-  );
+  const {
+    data: models = [],
+    isFetching: modelsLoading,
+    refetch: refetchModels,
+  } = useProviderModels(providerType, !!registeredForType);
 
-  /* eslint-disable react-hooks/set-state-in-effect */
-  useEffect(() => {
-    void loadModels(providerType);
-  }, [providerType, loadModels]);
-  /* eslint-enable react-hooks/set-state-in-effect */
+  const createProvider = useCreateProvider();
+  const removeProvider = useRemoveProvider();
 
   function handleProviderChange(p: string) {
     setProviderType(p);
     setModel('');
-    setModels([]);
   }
 
   async function handleAdd(e: React.FormEvent) {
     e.preventDefault();
     setError('');
     setSuccess('');
-    setLoading(true);
     try {
-      const res = await providerApi.create(providerType, apiKey, model);
-      const newProvider = res.data as Provider;
-      const updated = [...providers, newProvider];
-      setProviders(updated);
+      await createProvider.mutateAsync({ provider: providerType, apiKey, model });
       setApiKey('');
       setSuccess('API Key가 등록되었습니다.');
-      // stale closure 우회: 방금 만든 목록을 직접 전달
-      void loadModels(providerType, updated);
     } catch (err: unknown) {
       const status = (err as { response?: { status?: number } })?.response?.status;
       setError(
@@ -94,17 +54,12 @@ function ProviderPage() {
           ? 'API Key 검증에 실패했습니다. 키를 확인해주세요.'
           : '등록에 실패했습니다.',
       );
-    } finally {
-      setLoading(false);
     }
   }
 
   async function handleRemove(id: string) {
-    await providerApi.remove(id);
-    setProviders((prev) => prev.filter((p) => p.id !== id));
+    await removeProvider.mutateAsync(id);
   }
-
-  const registeredForType = providers.find((p) => p.provider === providerType);
 
   return (
     <div className="min-h-screen bg-[#faf9f7]">
@@ -199,7 +154,7 @@ function ProviderPage() {
                 {registeredForType && (
                   <button
                     type="button"
-                    onClick={() => loadModels(providerType)}
+                    onClick={() => refetchModels()}
                     className="flex items-center gap-1 text-xs text-stone-400 hover:text-stone-600 transition-colors"
                   >
                     <RefreshCw className={`h-3 w-3 ${modelsLoading ? 'animate-spin' : ''}`} />
@@ -261,8 +216,8 @@ function ProviderPage() {
           )}
 
           <div className="flex flex-col gap-1">
-            <Button type="submit" disabled={loading}>
-              {loading ? '검증 중...' : '등록'}
+            <Button type="submit" disabled={createProvider.isPending}>
+              {createProvider.isPending ? '검증 중...' : '등록'}
             </Button>
             <p className="text-xs text-stone-400 text-center">
               등록 시 API Key 유효성을 실시간으로 검증합니다.
