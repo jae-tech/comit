@@ -1,6 +1,6 @@
 {
   "name": "comit",
-  "version": "0.0.7",
+  "version": "0.0.8",
   "private": true,
   "scripts": {
     "dev": "turbo run dev",
