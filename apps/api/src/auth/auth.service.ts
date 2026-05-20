@@ -2,6 +2,7 @@ import {
   Injectable,
   UnauthorizedException,
   ConflictException,
+  ForbiddenException,
 } from '@nestjs/common';
 import { JwtService } from '@nestjs/jwt';
 import { ConfigService } from '@nestjs/config';
@@ -53,6 +54,8 @@ export class AuthService {
     const valid = await bcrypt.compare(dto.password, user.passwordHash);
     if (!valid) throw new UnauthorizedException('Invalid credentials');
 
+    if (!user.isActive) throw new ForbiddenException('Account disabled');
+
     return this.issueTokens(user);
   }
 
@@ -79,6 +82,7 @@ export class AuthService {
       .limit(1);
 
     if (!user) throw new UnauthorizedException('User not found');
+    if (!user.isActive) throw new ForbiddenException('Account disabled');
 
     await this.revokeRefreshToken(refreshToken);
     return this.issueTokens(user);

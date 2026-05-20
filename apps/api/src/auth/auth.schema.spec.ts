@@ -1,4 +1,4 @@
-import { RegisterSchema, LoginSchema } from '@comit/shared';
+import { RegisterSchema, LoginSchema, AdminChangePasswordSchema } from '@comit/shared';
 
 describe('RegisterSchema', () => {
   it('유효한 username과 8자 이상 비밀번호는 통과한다', () => {
@@ -64,6 +64,28 @@ describe('LoginSchema', () => {
       username: 'validuser',
       password: '',
     });
+    expect(result.success).toBe(false);
+  });
+});
+
+describe('AdminChangePasswordSchema', () => {
+  it('8자 이상 비밀번호는 통과한다', () => {
+    const result = AdminChangePasswordSchema.safeParse({ newPassword: 'password1' });
+    expect(result.success).toBe(true);
+  });
+
+  it('8자 미만 비밀번호는 실패한다', () => {
+    const result = AdminChangePasswordSchema.safeParse({ newPassword: 'short' });
+    expect(result.success).toBe(false);
+  });
+
+  it('빈 비밀번호는 실패한다', () => {
+    const result = AdminChangePasswordSchema.safeParse({ newPassword: '' });
+    expect(result.success).toBe(false);
+  });
+
+  it('newPassword 필드가 없으면 실패한다', () => {
+    const result = AdminChangePasswordSchema.safeParse({});
     expect(result.success).toBe(false);
   });
 });
