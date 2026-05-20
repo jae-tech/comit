@@ -16,7 +16,8 @@ export function AuthGuard({ children }: { children: React.ReactNode }) {
   /* eslint-enable react-hooks/set-state-in-effect */
 
   useEffect(() => {
-    if (hydrated && !accessToken) router.replace('/login');
+    if (!hydrated) return;
+    if (!accessToken) router.replace('/login');
   }, [hydrated, accessToken, router]);
 
   if (!hydrated || !accessToken) return null;

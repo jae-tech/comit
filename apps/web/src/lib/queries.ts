@@ -7,6 +7,7 @@ import {
   usageApi,
   adminApi,
   type WorkspaceDetail,
+  type AdminKeywords,
 } from '@/lib/api';
 
 // ── Query Keys ────────────────────────────────────────
@@ -23,6 +24,7 @@ export const queryKeys = {
   usageSessions: (workspaceId?: string, limit?: number) =>
     ['usage', 'sessions', workspaceId, limit] as const,
   adminStats: ['admin', 'stats'] as const,
+  adminKeywords: (limit: number) => ['admin', 'keywords', limit] as const,
 };
 
 // ── Workspaces ────────────────────────────────────────
@@ -234,5 +236,36 @@ export function useAdminStats() {
   return useQuery({
     queryKey: queryKeys.adminStats,
     queryFn: () => adminApi.stats().then((r) => r.data),
+  });
+}
+
+export function useAdminKeywords(limit = 100) {
+  return useQuery<AdminKeywords>({
+    queryKey: queryKeys.adminKeywords(limit),
+    queryFn: () => adminApi.keywords(limit).then((r) => r.data),
+  });
+}
+
+export function useAdminDeleteUser() {
+  const qc = useQueryClient();
+  return useMutation({
+    mutationFn: (id: string) => adminApi.deleteUser(id),
+    onSuccess: () => qc.invalidateQueries({ queryKey: queryKeys.adminStats }),
+  });
+}
+
+export function useAdminSetUserActive() {
+  const qc = useQueryClient();
+  return useMutation({
+    mutationFn: ({ id, isActive }: { id: string; isActive: boolean }) =>
+      adminApi.setUserActive(id, isActive),
+    onSuccess: () => qc.invalidateQueries({ queryKey: queryKeys.adminStats }),
+  });
+}
+
+export function useAdminChangeUserPassword() {
+  return useMutation({
+    mutationFn: ({ id, newPassword }: { id: string; newPassword: string }) =>
+      adminApi.changeUserPassword(id, newPassword),
   });
 }
