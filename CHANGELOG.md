@@ -2,6 +2,25 @@
 
 All notable changes to this project will be documented in this file.
 
+## [0.0.9] - 2026-05-20
+
+### Added
+- **관리자 유저 관리** — 관리자 대시보드에서 일반 유저를 삭제하거나 비활성화(사용 중지)/활성화할 수 있는 버튼 추가. 비밀번호도 직접 변경 가능
+- **계정 비활성화 차단** — `isActive=false` 계정은 로그인 및 토큰 갱신(refresh) 시 즉시 차단됨. DB 마이그레이션(`0006_add_user_is_active`) 포함
+- **AdminChangePasswordSchema / AdminSetActiveSchema** — `@comit/shared`에 관리자 액션용 Zod 검증 스키마 추가. API 컨트롤러에서 공유 사용
+
+### Changed
+- **관리자 워크스페이스 접근 복구** — `AuthGuard`가 admin 역할을 `/admin`으로 강제 리다이렉트하던 동작 제거. 관리자도 일반 워크스페이스 페이지에 접근 가능
+- **AdminPageGuard 강화** — 로그인 여부를 먼저 확인 후 role 체크. 비로그인 시 `/login`으로 이동
+
+### Fixed
+- **admin.controller.ts UUID 검증** — `ParseUUIDPipe` 적용으로 비UUID 파라미터 전달 시 400 반환 (이전: PostgreSQL 500 에러 노출)
+- **setUserActive body 타입 강제** — `AdminSetActiveSchema`로 Zod 검증 추가. `isActive: undefined/null` 전달 시 422 반환
+- **handleChangePassword 에러 처리** — 비밀번호 변경 실패 시 toast.error 표시 및 모달 정상 닫힘
+
+### Security
+- `refresh()` 메서드에 isActive 체크 추가 — 비활성화 직후에도 기존 리프레시 토큰으로 신규 액세스 토큰 발급 차단
+
 ## [0.0.8] - 2026-05-20
 
 ### Added

@@ -5,6 +5,7 @@ import {
   text,
   bigint,
   integer,
+  boolean,
   timestamp,
   jsonb,
   customType,
@@ -33,6 +34,7 @@ export const users = pgTable('users', {
   username: varchar('username').notNull().unique(),
   passwordHash: varchar('password_hash').notNull(),
   role: varchar('role').notNull().default('user'),
+  isActive: boolean('is_active').notNull().default(true),
   createdAt: timestamp('created_at', { withTimezone: true })
     .notNull()
     .defaultNow(),

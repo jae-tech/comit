@@ -282,6 +282,7 @@ export const usageApi = {
 export interface AdminUserStats {
   userId: string;
   username: string;
+  isActive: boolean;
   sessionCount: number;
   messageCount: number;
   inputTokens: number;
@@ -301,8 +302,25 @@ export interface AdminStats {
   byUser: AdminUserStats[];
 }
 
+export interface AdminKeywordEntry {
+  content: string;
+  count: number;
+  lastUsedAt: string;
+}
+
+export interface AdminKeywords {
+  total: number;
+  items: AdminKeywordEntry[];
+}
+
 export const adminApi = {
   stats: () => api.get<AdminStats>('/admin/stats'),
+  keywords: (limit = 100) => api.get<AdminKeywords>(`/admin/keywords?limit=${limit}`),
+  deleteUser: (id: string) => api.delete(`/admin/users/${id}`),
+  setUserActive: (id: string, isActive: boolean) =>
+    api.patch(`/admin/users/${id}/active`, { isActive }),
+  changeUserPassword: (id: string, newPassword: string) =>
+    api.patch(`/admin/users/${id}/password`, { newPassword }),
 };
 
 // ── Demo (public, no auth) ────────────────────────────

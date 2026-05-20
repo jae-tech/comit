@@ -7,7 +7,7 @@ import {
   useCreateProvider,
   useRemoveProvider,
 } from '@/lib/queries';
-import { AuthGuard } from '@/components/auth-guard';
+import { AdminPageGuard } from '@/components/admin-page-guard';
 import { AppHeader, CONTENT_WIDTH } from '@/components/app-header';
 import { Button } from '@/components/ui/button';
 import { Input } from '@/components/ui/input';
@@ -231,8 +231,8 @@ function ProviderPage() {
 
 export default function ProviderSettingsPage() {
   return (
-    <AuthGuard>
+    <AdminPageGuard>
       <ProviderPage />
-    </AuthGuard>
+    </AdminPageGuard>
   );
 }

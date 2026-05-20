@@ -7,7 +7,7 @@ import {
 import { eq, and } from 'drizzle-orm';
 import OpenAI from 'openai';
 import { DrizzleService } from '@/database/drizzle.service';
-import { aiProviders, type AiProvider } from '@/database/schema';
+import { aiProviders, users, type AiProvider } from '@/database/schema';
 import { EncryptionService } from './encryption.service';
 import { ProviderResponse, ModelInfo, ModelsResponse } from '@comit/shared';
 import { CreateProviderDto, UpdateProviderDto } from './providers.dto';
@@ -100,6 +100,21 @@ export class ProvidersService {
     if (!provider) return null;
     const apiKey = this.encryption.decrypt(provider.encryptedKey, provider.iv);
     return { apiKey, provider: provider.provider, model: provider.model };
+  }
+
+  async getAdminDecryptedKey(): Promise<{
+    apiKey: string;
+    provider: string;
+    model: string;
+  } | null> {
+    const [adminUser] = await this.drizzle.db
+      .select({ id: users.id })
+      .from(users)
+      .where(eq(users.role, 'admin'))
+      .limit(1);
+
+    if (!adminUser) return null;
+    return this.getDecryptedKey(adminUser.id);
   }
 
   async getDecryptedKeyById(

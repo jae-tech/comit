@@ -34,6 +34,10 @@ export default function LoginPage() {
           router.push('/demo');
           return;
         }
+        if (payload.role === 'admin') {
+          router.push('/admin');
+          return;
+        }
       } catch {
         // JWT 파싱 실패 시 기본 경로로
       }

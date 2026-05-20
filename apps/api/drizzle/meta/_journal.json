@@ -43,6 +43,13 @@
       "when": 1779249860000,
       "tag": "0005_rename_email_to_username",
       "breakpoints": true
+    },
+    {
+      "idx": 6,
+      "version": "7",
+      "when": 1747612800000,
+      "tag": "0006_add_user_is_active",
+      "breakpoints": true
     }
   ]
 }

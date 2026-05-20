@@ -9,7 +9,7 @@ import { AuthGuard } from '@/components/auth-guard';
 import { AppHeader, CONTENT_WIDTH } from '@/components/app-header';
 import { Button } from '@/components/ui/button';
 import { Input } from '@/components/ui/input';
-import { FileText, Plus, Settings, LogOut, ChevronRight, MessageSquare, Trash2, BarChart2 } from 'lucide-react';
+import { FileText, Plus, LogOut, ChevronRight, MessageSquare, Trash2, LayoutDashboard } from 'lucide-react';
 import { toast } from 'sonner';
 
 function WorkspaceSkeleton() {
@@ -36,7 +36,7 @@ function WorkspaceSkeleton() {
 
 function HomePage() {
   const router = useRouter();
-  const { clear, refreshToken } = useAuthStore();
+  const { clear, refreshToken, role } = useAuthStore();
   const [newName, setNewName] = useState('');
   const [showForm, setShowForm] = useState(false);
   const [pendingDeleteId, setPendingDeleteId] = useState<string | null>(null);
@@ -76,14 +76,12 @@ function HomePage() {
         home
         right={
           <>
-            <Button variant="ghost" size="sm" onClick={() => router.push('/usage')}>
-              <BarChart2 className="h-4 w-4" />
-              <span className="hidden sm:inline">사용량</span>
-            </Button>
-            <Button variant="ghost" size="sm" onClick={() => router.push('/settings/provider')}>
-              <Settings className="h-4 w-4" />
-              <span className="hidden sm:inline">API 설정</span>
-            </Button>
+            {role === 'admin' && (
+              <Button variant="ghost" size="sm" onClick={() => router.push('/admin')}>
+                <LayoutDashboard className="h-4 w-4" />
+                <span className="hidden sm:inline">대시보드</span>
+              </Button>
+            )}
             <Button variant="ghost" size="sm" onClick={handleLogout}>
               <LogOut className="h-4 w-4" />
               <span className="hidden sm:inline">로그아웃</span>

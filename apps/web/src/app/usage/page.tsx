@@ -11,7 +11,7 @@ import {
   CartesianGrid,
 } from 'recharts';
 import { useUsageSummary, useUsageDaily, useUsageSessions } from '@/lib/queries';
-import { AuthGuard } from '@/components/auth-guard';
+import { AdminPageGuard } from '@/components/admin-page-guard';
 import { AppHeader, CONTENT_WIDTH } from '@/components/app-header';
 import { BarChart2, Zap, DollarSign, Database } from 'lucide-react';
 
@@ -285,8 +285,8 @@ function UsagePage() {
 
 export default function UsagePageWrapper() {
   return (
-    <AuthGuard>
+    <AdminPageGuard>
       <UsagePage />
-    </AuthGuard>
+    </AdminPageGuard>
   );
 }

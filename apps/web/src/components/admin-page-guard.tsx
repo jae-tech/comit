@@ -6,6 +6,7 @@ import { useAuthStore } from '@/store/auth';
 
 export function AdminPageGuard({ children }: { children: React.ReactNode }) {
   const router = useRouter();
+  const accessToken = useAuthStore((s) => s.accessToken);
   const role = useAuthStore((s) => s.role);
   const [hydrated, setHydrated] = useState(false);
 
@@ -16,9 +17,14 @@ export function AdminPageGuard({ children }: { children: React.ReactNode }) {
   /* eslint-enable react-hooks/set-state-in-effect */
 
   useEffect(() => {
-    if (hydrated && role !== 'admin') router.replace('/workspaces');
-  }, [hydrated, role, router]);
+    if (!hydrated) return;
+    if (!accessToken) {
+      router.replace('/login');
+    } else if (role !== 'admin') {
+      router.replace('/');
+    }
+  }, [hydrated, accessToken, role, router]);
 
-  if (!hydrated || role !== 'admin') return null;
+  if (!hydrated || !accessToken || role !== 'admin') return null;
   return <>{children}</>;
 }
