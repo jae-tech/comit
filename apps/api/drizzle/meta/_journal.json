@@ -47,7 +47,7 @@
     {
       "idx": 6,
       "version": "7",
-      "when": 1747612800000,
+      "when": 1779336260000,
       "tag": "0006_add_user_is_active",
       "breakpoints": true
     }
