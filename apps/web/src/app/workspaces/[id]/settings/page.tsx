@@ -4,7 +4,7 @@ import { useState, useEffect } from 'react';
 import { useParams } from 'next/navigation';
 import { toast } from 'sonner';
 import { useWorkspace, useProviders, useUpdateWorkspace, useSetActiveProvider } from '@/lib/queries';
-import { AuthGuard } from '@/components/auth-guard';
+import { AdminPageGuard } from '@/components/admin-page-guard';
 import { AppHeader, CONTENT_WIDTH } from '@/components/app-header';
 import { Button } from '@/components/ui/button';
 import { Input } from '@/components/ui/input';
@@ -256,8 +256,8 @@ function SettingsPage() {
 
 export default function SettingsPageWrapper() {
   return (
-    <AuthGuard>
+    <AdminPageGuard>
       <SettingsPage />
-    </AuthGuard>
+    </AdminPageGuard>
   );
 }

@@ -5,7 +5,7 @@ import { useRouter, useParams } from 'next/navigation';
 import { toast } from 'sonner';
 import { documentApi } from '@/lib/api';
 import { useDocuments, useUploadDocument, useRemoveDocument } from '@/lib/queries';
-import { AuthGuard } from '@/components/auth-guard';
+import { AdminPageGuard } from '@/components/admin-page-guard';
 import { AppHeader, CONTENT_WIDTH } from '@/components/app-header';
 import { Button } from '@/components/ui/button';
 import { Upload, Trash2, MessageSquare, FileText, Loader2, CheckCircle, XCircle, Clock } from 'lucide-react';
@@ -242,8 +242,8 @@ function DocumentsPage() {
 
 export default function DocumentsPageWrapper() {
   return (
-    <AuthGuard>
+    <AdminPageGuard>
       <DocumentsPage />
-    </AuthGuard>
+    </AdminPageGuard>
   );
 }

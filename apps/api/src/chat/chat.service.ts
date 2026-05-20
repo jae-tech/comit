@@ -56,12 +56,16 @@ export class ChatService {
     );
     const systemPrompt = workspace.systemPrompt || DEFAULT_SYSTEM_PROMPT;
 
-    const creds = workspace.activeProviderId
-      ? await this.providersService.getDecryptedKeyById(
-          userId,
-          workspace.activeProviderId,
-        )
-      : await this.providersService.getDecryptedKey(userId);
+    // provider 우선순위: 워크스페이스 지정 키 → 유저 키 → admin 키(fallback)
+    const creds =
+      (workspace.activeProviderId
+        ? await this.providersService.getDecryptedKeyById(
+            userId,
+            workspace.activeProviderId,
+          )
+        : null) ??
+      (await this.providersService.getDecryptedKey(userId)) ??
+      (await this.providersService.getAdminDecryptedKey());
     if (!creds) throw new NotFoundException('AI provider not configured');
 
     const [{ count }] = await this.drizzle.db
