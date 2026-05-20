@@ -48,9 +48,10 @@ function HomePage() {
   async function handleCreate(e: React.FormEvent) {
     e.preventDefault();
     if (!newName.trim()) return;
-    await createWorkspace.mutateAsync(newName.trim());
+    const ws = await createWorkspace.mutateAsync(newName.trim());
     setNewName('');
     setShowForm(false);
+    router.push(`/workspaces/${ws.id}/documents`);
   }
 
   async function confirmRemove(id: string) {

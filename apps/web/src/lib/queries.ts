@@ -65,23 +65,29 @@ export function useRemoveWorkspace() {
   });
 }
 
-export function useUpdatePersona() {
+export function useUpdateWorkspace() {
   const qc = useQueryClient();
   return useMutation({
     mutationFn: ({
       id,
-      personaName,
-      systemPrompt,
+      ...data
     }: {
       id: string;
-      personaName: string;
-      systemPrompt: string;
-    }) => workspaceApi.updatePersona(id, personaName, systemPrompt).then((r) => r.data),
+      name?: string;
+      personaName?: string;
+      systemPrompt?: string;
+    }) => workspaceApi.updateWorkspace(id, data).then((r) => r.data),
     onSuccess: (updated) => {
       qc.setQueryData(queryKeys.workspace(updated.id), updated);
+      qc.setQueryData<WorkspaceDetail[]>(queryKeys.workspaces, (prev = []) =>
+        prev.map((w) => (w.id === updated.id ? { ...w, name: updated.name } : w)),
+      );
     },
   });
 }
+
+/** @deprecated useUpdateWorkspace 사용 */
+export const useUpdatePersona = useUpdateWorkspace;
 
 export function useSetActiveProvider() {
   const qc = useQueryClient();

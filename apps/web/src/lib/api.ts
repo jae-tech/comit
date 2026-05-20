@@ -160,8 +160,8 @@ export const workspaceApi = {
   list: () => api.get<WorkspaceDetail[]>('/workspaces'),
   create: (name: string) => api.post<WorkspaceDetail>('/workspaces', { name }),
   get: (id: string) => api.get<WorkspaceDetail>(`/workspaces/${id}`),
-  updatePersona: (id: string, personaName: string, systemPrompt: string) =>
-    api.patch<WorkspaceDetail>(`/workspaces/${id}`, { personaName, systemPrompt }),
+  updateWorkspace: (id: string, data: { name?: string; personaName?: string; systemPrompt?: string }) =>
+    api.patch<WorkspaceDetail>(`/workspaces/${id}`, data),
   setActiveProvider: (id: string, providerId: string) =>
     api.patch<WorkspaceDetail>(`/workspaces/${id}/provider`, { providerId }),
   remove: (id: string) => api.delete(`/workspaces/${id}`),
