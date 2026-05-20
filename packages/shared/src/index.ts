@@ -12,3 +12,6 @@ export * from './chat.types';
 
 // Workspace
 export * from './workspace.types';
+
+// Admin
+export * from './admin.types';
